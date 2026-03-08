@@ -1,0 +1,221 @@
+﻿@page "/profile"
+
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<body style="background-image:url(/img/background.jpg);justify-content:center;align-items:center;">
+    @if (!isLoggedIn)
+    {
+        @if (ProfileMode == "Login")
+        {
+            <div style="width:100%; margin:200px 200px auto; display:flex; flex-direction:column; align-items:flex-start;">
+
+                <input @bind="LoginField" style="width:288px; box-sizing:border-box; margin:0.75rem 0 0.5rem; height:2.5rem;border-radius: 0.25rem;border: 1px solid #bfbfbf; padding: 0 0.75rem;"
+                       id="username" type="text" placeholder="Пользователь" />
+
+                <input @bind="PasswordField" style="width:288px; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;border: 1px solid #bfbfbf; padding: 0 0.75rem;"
+                       id="password" type="password" placeholder="Пароль" />
+
+                <button @onclick="Login" style=" width:288px; border:1px solid #367db8; background-color:#5496cd; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;">
+                    Вход в систему
+                </button>
+
+                <button @onclick="SwitchMode" style="width:288px; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;border: 1px solid #bfbfbf;">
+                    Еще нет аккаунта?
+                </button>
+            </div>
+        }
+        @if(ProfileMode == "Register")
+        {
+            <div style="width:100%; margin:200px 200px auto; display:flex; flex-direction:column; align-items:flex-start;">
+
+                <input @bind="LoginField" style="width:288px; box-sizing:border-box; margin:0.75rem 0 0.5rem; height:2.5rem;border-radius: 0.25rem;border: 1px solid #bfbfbf; padding: 0 0.75rem;"
+                       id="username" type="text" placeholder="Пользователь" />
+
+                <input @bind="PasswordField" style="width:288px; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;border: 1px solid #bfbfbf; padding: 0 0.75rem;"
+                       id="password" type="password" placeholder="Пароль" />
+
+                <button @onclick="Register" style=" width:288px; border:1px solid #367db8; background-color:#5496cd; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;">
+                    Зарегистрироваться
+                </button>
+
+                <button @onclick="SwitchMode" style="width:288px; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;border: 1px solid #bfbfbf;">
+                    Уже есть аккаунт?
+                </button>
+            </div>
+        }
+    }
+    @if(isLoggedIn)
+    {
+        <h1>Мой профиль</h1>
+    }
+</body>
+
+@code {
+    private string token = string.Empty;
+    private bool isLoggedIn = false;
+    private int userId;
+
+    public string LoginField;
+    public string PasswordField;
+    public string ProfileMode = "Login";
+
+    [Inject] IHttpClientFactory ClientFactory { get; set; }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        string userIdStr = string.Empty;
+        if (firstRender)
+        {
+            try
+            {
+                token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
+                userIdStr = await JS.InvokeAsync<string>("localStorage.getItem", "userId");
+            }
+            catch (Exception) { }
+
+            isLoggedIn = !string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(userIdStr);
+            if (isLoggedIn)
+                userId = int.Parse(userIdStr);
+
+            StateHasChanged();
+        }
+    }
+
+    public class LoginRequest
+    {
+        public string Login { get; set; }
+        public string Password { get; set; }
+    }
+
+    public class LoginResult
+    {
+        public UserDto User { get; set; }
+        public string Token { get; set; }
+    }
+
+    public class UserDto
+    {
+        public int UserId { get; set; }
+        public string DisplayName { get; set; } = null!;
+        public string? Email { get; set; }
+    }
+
+    private async Task Login()
+    {
+        var client = ClientFactory.CreateClient("api");
+
+        var req = new LoginRequest
+        {
+            Login = LoginField,
+            Password = PasswordField
+        };
+
+        var response = await client.PostAsJsonAsync("http://apiservice/api/auth/login", req);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<LoginResult>();
+
+            try
+            {
+                await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
+                await JS.InvokeVoidAsync("localStorage.setItem", "username", result.User.DisplayName);
+                await JS.InvokeVoidAsync("localStorage.setItem", "userId", result.User.UserId.ToString());
+            }
+            catch (Exception) { }
+
+            // currentUserName = result.User.DisplayName;
+            isLoggedIn = true;
+
+            Nav.NavigateTo(Nav.Uri, forceLoad: true);
+        }
+        else
+        {
+            try
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", $"Возникла проблема: {error}");
+            }
+            catch (Exception) { }
+        }
+    }
+
+    private void ChangePassword()
+    {
+
+    }
+
+    public class RegisterRequest
+    {
+        public string Login { get; set; }
+        public string Password { get; set; }
+    }
+
+    private async Task Register()
+    {
+        var client = ClientFactory.CreateClient("api");
+
+        var req = new RegisterRequest
+        {
+            Login = LoginField,
+            Password = PasswordField
+        };
+
+        var response = await client.PostAsJsonAsync("http://apiservice/api/auth/register", req);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await Login();
+
+            // var loginReq = new LoginRequest
+            // {
+            //     Identifier = loginName,
+            //     Password = password
+            // };
+
+            // var loginResponse = await client.PostAsJsonAsync("http://apiservice/api/auth/login", loginReq);
+            // if (loginResponse.IsSuccessStatusCode)
+            // {
+            //     var result = await loginResponse.Content.ReadFromJsonAsync<LoginResult>();
+            //     try
+            //     {
+            //         await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
+            //         await JS.InvokeVoidAsync("localStorage.setItem", "username", result.User.DisplayName);
+            //         await JS.InvokeVoidAsync("localStorage.setItem", "userId", result.User.UserId.ToString());
+            //     }
+            //     catch (Exception) { }
+
+            //     currentUserName = result.User.DisplayName;
+            //     isLoggedIn = true;
+
+            //     showAuthModal = false;
+
+            //     Nav.NavigateTo(Nav.Uri, forceLoad: true);
+            // }
+        }
+        else
+        {
+            try
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                await JS.InvokeVoidAsync("alert", $"Возникла проблема: {error}");
+            }
+            catch (Exception) { }
+        }
+    }
+
+    private void SwitchMode()
+    {
+        switch(ProfileMode)
+        {
+            case "Login":
+                ProfileMode = "Register";
+                break;
+            case "Register":
+                ProfileMode = "Login";
+                break;
+        }
+          
+    }
+}

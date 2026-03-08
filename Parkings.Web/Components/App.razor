@@ -1,0 +1,54 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["Parkings.Web.styles.css"]" />
+    <ImportMap />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet @rendermode="InteractiveServer" />
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=3cd756f6-394a-4ea1-96d3-13b8f3ee7b9f&lang=ru_RU"></script>
+    <script src="/js/parkingCanvas.js"></script>
+    <link rel="stylesheet" href="css/parking.css" />
+    <script src="/js/mapPicker.js"></script>
+    <script src="/js/parkingMap.js"></script>
+    <script src="/js/mapPicker.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="/js/occupancyChart.js"></script>
+</head>
+
+<body style="background-image:url(/img/background.jpg);">
+    <div class="page-top-bar">
+        <div class="top-bar-container">
+            <div class="top-left">
+                <img src="images/logo.svg" class="logo" alt="Logo" />
+                <a href="/" class="site-title">Парковки</a>
+            </div>
+
+            <div class="top-search">
+                <input type="text"
+                       placeholder="Поиск парковки..."
+                       class="search-input" />
+            </div>
+
+            <nav class="top-nav">
+                <a href="/map">Карта</a>
+                <a href="/profile">Профиль</a>
+            </nav>
+        </div>
+    </div>
+    <main>
+        <Routes @rendermode=RenderMode.InteractiveServer />
+    </main>
+    <script src="@Assets["_framework/blazor.web.js"]"></script>
+
+    <footer style="bottom:0;">
+       @*  <div class="page-bottom-bar"></div> *@
+    </footer>
+</body>
+
+</html>

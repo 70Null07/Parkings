@@ -1,0 +1,348 @@
+﻿/* SAP Fiori Horizon Design Tokens */
+@import url("https://cdn.jsdelivr.net/npm/@ui5/webcomponents-theming@2/dist/Theme/sap_horizon/css_variables.css");
+
+/* ── Layout ── */
+.pk-content {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    align-items: flex-start;
+    background: var(--sapBackgroundColor, #F5F6F7);
+    min-height: 100vh;
+    font-family: var(--sapFontFamily, "72", Arial, sans-serif);
+}
+
+/* ── Card ── */
+.pk-card {
+    background: var(--sapGroup_ContentBackground, #fff);
+    border: 1px solid var(--sapGroup_ContentBorderColor, #d9d9d9);
+    border-radius: var(--sapElement_BorderCornerRadius, 0.5rem);
+    overflow: hidden;
+    box-shadow: var(--sapContent_Shadow0, 0 1px 4px rgba(0,0,0,.08));
+}
+
+.pk-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--sapGroup_ContentBorderColor, #e5e5e5);
+    background: var(--sapGroup_ContentBackground, #fff);
+}
+
+.pk-card-title {
+    font-size: var(--sapFontHeader5Size, 0.875rem);
+    font-weight: var(--sapFontHeaderWeight, 700);
+    color: var(--sapGroup_TitleTextColor, #32363A);
+    margin: 0;
+}
+
+.pk-card-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--sapContent_LabelColor, #556B82);
+}
+
+.pk-card-body {
+    padding: 0.875rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* ── Camera ── */
+.pk-camera-card {
+    flex: 0 0 auto;
+}
+
+.pk-canvas-wrap {
+    position: relative;
+    line-height: 0;
+    background: #111;
+}
+
+#parkingImage {
+    display: block;
+    width: 640px;
+    height: 480px;
+    object-fit: cover;
+}
+
+.pk-image-frozen #parkingImage {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#parkingCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 640px;
+    height: 480px;
+}
+
+/* ── Message Strip ── */
+.pk-message-strip {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    background: var(--sapWarningBackground, #FEF3BD);
+    border-top: 2px solid var(--sapWarningBorderColor, #E8A000);
+    font-size: 0.75rem;
+    color: var(--sapWarningColor, #5C3900);
+    font-weight: 600;
+}
+
+.pk-message-strip-icon {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--sapWarningBorderColor, #E8A000);
+    flex-shrink: 0;
+    margin-top: 4px;
+    animation: pk-blink 1.2s ease-in-out infinite;
+}
+
+.pk-message-strip kbd {
+    display: inline-block;
+    /*background: rgba(255,255,255,0.7);*/
+    border: 1px solid var(--sapWarningBorderColor, #E8A000);
+    border-radius: 3px;
+    padding: 0 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+/* ── Sidebar ── */
+.pk-sidebar {
+    flex: 0 0 272px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* ── Key-Value rows ── */
+.pk-kv {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--sapList_BorderColor, #e5e5e5);
+    font-family: var(--sapFontFamily, Arial);
+}
+
+    .pk-kv:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+    }
+
+.pk-kv-label {
+    font-size: 0.75rem;
+    color: var(--sapContent_LabelColor, #556B82);
+}
+
+.pk-kv-val {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--sapTextColor, #32363A);
+}
+
+.pk-kv-val-big {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: var(--sapBrandColor, #0070F2);
+}
+
+.pk-kv-val-warn {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--sapCriticalTextColor, #E8A000);
+}
+
+/* ── Badge ── */
+.pk-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    border-radius: 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+.pk-badge-positive {
+    background: var(--sapPositiveBackground, #F0FFF6);
+    border: 1px solid var(--sapPositiveColor, #107E3E);
+    color: var(--sapPositiveTextColor, #107E3E);
+}
+
+.pk-badge-critical {
+    background: var(--sapCriticalBackground, #FEF3BD);
+    border: 1px solid var(--sapCriticalBorderColor, #E8A000);
+    color: var(--sapCriticalTextColor, #5C3900);
+    animation: pk-blink 1.4s infinite;
+}
+
+.pk-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+@@keyframes pk-blink {
+    0%, 100% {
+        opacity: 1
+    }
+
+    50% {
+        opacity: .5
+    }
+}
+
+/* ── Buttons ── */
+.pk-btn {
+    height: 36px;
+    padding: 0 1rem;
+    font-family: var(--sapFontFamily, Arial);
+    font-size: var(--sapFontSize, 0.875rem);
+    font-weight: 700;
+    border-radius: var(--sapButton_BorderCornerRadius, 0.5rem);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    white-space: nowrap;
+    border: 1px solid;
+    transition: background 0.12s, filter 0.12s;
+    outline: none;
+}
+
+    .pk-btn:focus-visible {
+        box-shadow: 0 0 0 var(--sapContent_FocusWidth, 2px) var(--sapContent_FocusColor, #0070F2);
+        outline: none;
+    }
+
+    .pk-btn:disabled {
+        opacity: 0.38;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+.pk-btn-emphasized {
+    background: var(--sapButton_Emphasized_Background, #0070F2);
+    border-color: var(--sapButton_Emphasized_BorderColor, #0070F2);
+    color: var(--sapButton_Emphasized_TextColor, #fff);
+}
+
+    .pk-btn-emphasized:hover {
+        filter: brightness(0.92);
+    }
+
+.pk-btn-attention {
+    background: var(--sapButton_Attention_Background, #E8A000);
+    border-color: var(--sapButton_Attention_BorderColor, #E8A000);
+    color: #fff;
+}
+
+    .pk-btn-attention:hover {
+        filter: brightness(0.92);
+    }
+
+.pk-btn-positive {
+    background: var(--sapButton_Accept_Background, #fff);
+    border-color: var(--sapButton_Accept_BorderColor, #107E3E);
+    color: var(--sapButton_Accept_TextColor, #107E3E);
+}
+
+    .pk-btn-positive:hover {
+        background: var(--sapButton_Accept_Hover_Background, #F0FFF6);
+    }
+
+.pk-btn-negative {
+    background: var(--sapButton_Reject_Background, #fff);
+    border-color: var(--sapButton_Reject_BorderColor, #BB0000);
+    color: var(--sapButton_Reject_TextColor, #BB0000);
+}
+
+    .pk-btn-negative:hover {
+        background: var(--sapButton_Reject_Hover_Background, #FFF0F0);
+    }
+
+.pk-btn-default {
+    background: var(--sapButton_Background, #fff);
+    border-color: var(--sapButton_BorderColor, #bbb);
+    color: var(--sapButton_TextColor, #32363A);
+}
+
+    .pk-btn-default:hover {
+        background: var(--sapButton_Hover_Background, #F5F6F7);
+    }
+
+/* ── Info strip ── */
+.pk-info-strip {
+    background: var(--sapInformativeBackground, #EEF4FB);
+    border: 1px solid var(--sapInformativeBorderColor, #B4D0F0);
+    border-radius: var(--sapElement_BorderCornerRadius, 0.375rem);
+    padding: 10px 12px;
+    font-size: 0.75rem;
+    line-height: 1.65;
+    color: var(--sapInformativeTextColor, #0A3F7A);
+    display: flex;
+    gap: 8px;
+}
+
+    .pk-info-strip kbd {
+        display: inline-block;
+        /*background: #fff;*/
+        border: 1px solid var(--sapInformativeBorderColor, #B4D0F0);
+        border-radius: 3px;
+        padding: 0 5px;
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+
+/* ── Output pre ── */
+.pk-output-pre {
+    font-family: var(--sapFontMonospaceFamily, "Courier New", monospace);
+    font-size: 0.72rem;
+    background: var(--sapBackgroundColor, #F5F6F7);
+    border: 1px solid var(--sapGroup_ContentBorderColor, #e5e5e5);
+    border-radius: 4px;
+    padding: 0.75rem;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--sapTextColor, #32363A);
+    margin: 0;
+}
+
+.pk-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+    .pk-history-table th {
+        text-align: left;
+        padding: 0.4rem 0.5rem;
+        border-bottom: 2px solid #d9d9d9;
+        color: var(--sapContent_LabelColor, #556B82);
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .pk-history-table td {
+        padding: 0.4rem 0.5rem;
+        border-bottom: 1px solid #f0f0f0;
+        white-space: nowrap;
+    }
+
+    .pk-history-table tr:hover td {
+        background: #f7f7f7;
+    }

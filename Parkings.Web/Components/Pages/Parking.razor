@@ -1,0 +1,488 @@
+﻿@page "/parking/{Id:int}"
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@inject IHttpClientFactory ClientFactory
+@using System.Text.Json
+@implements IAsyncDisposable
+
+<HeadContent>
+    <link rel="stylesheet" href="css/parking.css" />
+</HeadContent>
+
+<div class="pk-content">
+    @if (isPageLoading)
+    {
+        <div class="pk-card" style="padding:2rem">⏳ Загрузка...</div>
+    }
+    else if (parking == null)
+    {
+        <div class="pk-card" style="padding:2rem;color:#BB0000">⚠ Парковка не найдена</div>
+    }
+    else
+    {
+        <div class="pk-camera-card pk-card">
+            <div class="pk-card-header">
+                <h2 class="pk-card-title">📷 @parking.Name</h2>
+                <span class="pk-card-subtitle">@parking.Address</span>
+            </div>
+
+            <div class="pk-canvas-wrap @(isDrawing ? "pk-image-frozen" : "")">
+                <img id="parkingImage" src="@snapshotUrl" width="640" height="480" />
+                <canvas id="parkingCanvas" width="640" height="480"></canvas>
+            </div>
+
+            @if (isDrawing)
+            {
+                <div class="pk-message-strip">
+                    <span class="pk-message-strip-icon"></span>
+                    <span>
+                        Режим разметки.&nbsp;
+                        <kbd>ЛКМ</kbd> — точка &nbsp;·&nbsp;
+                        <kbd>ПКМ</kbd> — удалить &nbsp;·&nbsp;
+                        <strong>4 точки</strong> = место
+                    </span>
+                </div>
+            }
+        </div>
+
+        <div class="pk-sidebar">
+
+            <!-- Статистика — видна всем -->
+            <div class="pk-card">
+                <div class="pk-card-header">
+                    <h2 class="pk-card-title">Загруженность</h2>
+                    @if (parking.LastCheckedAt.HasValue)
+                    {
+                        <span class="pk-card-subtitle">
+                            @parking.LastCheckedAt.Value.ToLocalTime().ToString("HH:mm:ss")
+                        </span>
+                    }
+                </div>
+                <div class="pk-card-body">
+                    <div class="pk-kv">
+                        <span class="pk-kv-label">Свободно</span>
+                        <span class="pk-kv-val-big" style="color:#107E3E">@parking.FreeSpots</span>
+                    </div>
+                    <div class="pk-kv">
+                        <span class="pk-kv-label">Занято</span>
+                        <span class="pk-kv-val-big" style="color:#BB0000">@parking.BusySpots</span>
+                    </div>
+                    <div class="pk-kv">
+                        <span class="pk-kv-label">Всего мест</span>
+                        <span class="pk-kv-val">@spaceCount</span>
+                    </div>
+                </div>
+            </div>
+
+            @if (isOwner)
+            {
+                <!-- Владелец: режим разметки -->
+                <div class="pk-card">
+                    <div class="pk-card-header">
+                        <h2 class="pk-card-title">Разметка</h2>
+                    </div>
+                    <div class="pk-card-body">
+                        <button class="pk-btn @(isDrawing ? "pk-btn-attention" : "pk-btn-emphasized")"
+                                @onclick="ToggleDraw">
+                            @(isDrawing ? "⏹ Завершить разметку" : "✏ Начать разметку")
+                        </button>
+                        <button class="pk-btn pk-btn-positive"
+                                @onclick="SaveSpaces"
+                                disabled="@(spaceCount == 0 || isSaving)">
+                            @(isSaving ? "⏳ Сохранение..." : "💾 Сохранить разметку")
+                        </button>
+                        <button class="pk-btn pk-btn-default"
+                                @onclick="UndoLast"
+                                disabled="@(!isDrawing)">
+                            ↩ Отменить последнее
+                        </button>
+                        <button class="pk-btn pk-btn-negative"
+                                @onclick="ClearAll"
+                                disabled="@(spaceCount == 0)">
+                            🗑 Очистить всё
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pk-card">
+                    <div class="pk-card-header">
+                        <h2 class="pk-card-title">Как пользоваться</h2>
+                    </div>
+                    <div class="pk-card-body">
+                        <div class="pk-info-strip">
+                            <span>ℹ️</span>
+                            <div>
+                                <kbd>ЛКМ</kbd> — поставить точку<br />
+                                <kbd>ПКМ</kbd> — удалить точку / место<br />
+                                <strong>4 точки</strong> замыкаются в место.<br />
+                                Наведите мышь — место подсветится.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Не-владелец: режим подсветки -->
+                <div class="pk-card">
+                    <div class="pk-card-header">
+                        <h2 class="pk-card-title">Режим отображения</h2>
+                    </div>
+                    <div class="pk-card-body">
+                        <button class="pk-btn @(occupancyModeOn ? "pk-btn-emphasized" : "pk-btn-default")"
+                                @onclick="ToggleOccupancyMode">
+                            @(occupancyModeOn ? "🟢 Подсветка включена" : "🔘 Включить подсветку")
+                        </button>
+                        @if (occupancyModeOn)
+                        {
+                            <div class="pk-info-strip" style="margin-top:0.5rem">
+                                <span></span>
+                                <div>
+                                    <span style="color:#22aa22">■</span> Свободно &nbsp;
+                                    <span style="color:#cc2222">■</span> Занято
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(saveMessage))
+            {
+                <div class="pk-card">
+                    <div class="pk-card-header">
+                        <h2 class="pk-card-title">@saveMessage</h2>
+                    </div>
+                </div>
+            }
+
+            <!-- История загруженности — видна всем -->
+            <div class="pk-card">
+                <div class="pk-card-header">
+                    <h2 class="pk-card-title">История загруженности</h2>
+                    <div style="display:flex; gap:0.5rem;">
+                        <button class="pk-btn @(historyView == "chart" ? "pk-btn-emphasized" : "pk-btn-default")"
+                                @onclick='() => SwitchView("chart")'>
+                            📊 График
+                        </button>
+                        <button class="pk-btn @(historyView == "table" ? "pk-btn-emphasized" : "pk-btn-default")"
+                                @onclick='() => SwitchView("table")'>
+                            📋 Таблица
+                        </button>
+                    </div>
+                </div>
+                <div class="pk-card-body">
+                    @if (historyLoading)
+                    {
+                        <div style="color:var(--sapContent_LabelColor)">⏳ Загрузка...</div>
+                    }
+                    else if (history.Count == 0)
+                    {
+                        <div style="color:var(--sapContent_LabelColor)">Нет данных</div>
+                    }
+                    else if (historyView == "chart")
+                    {
+                        <div style="position:relative; height:220px;">
+                            <canvas id="occupancyChart"></canvas>
+                        </div>
+                    }
+                    else
+                    {
+                        <div style="overflow-x:auto;">
+                            <table class="pk-history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Дата и время</th>
+                                        <th>Занято</th>
+                                        <th>Свободно</th>
+                                        <th>Всего</th>
+                                        <th>Загруженность</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var h in history)
+                                    {
+                                        var pct = h.TotalSpots > 0
+                                        ? (int)Math.Round((double)h.BusySpots / h.TotalSpots * 100) : 0;
+                                        <tr>
+                                            <td>@h.RecordedAt.ToLocalTime().ToString("dd.MM HH:mm")</td>
+                                            <td style="color:#BB0000;font-weight:600">@h.BusySpots</td>
+                                            <td style="color:#107E3E;font-weight:600">@h.FreeSpots</td>
+                                            <td>@h.TotalSpots</td>
+                                            <td>
+                                                <div style="display:flex;align-items:center;gap:0.5rem;">
+                                                    <div style="flex:1;background:#e0e0e0;border-radius:4px;height:8px;">
+                                                        <div style="width:@(pct)%;background:#BB0000;height:8px;border-radius:4px;"></div>
+                                                    </div>
+                                                    <span style="font-size:0.75rem;min-width:2rem">@(pct)%</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@* Внизу страницы, после основного контента *@
+@* @if (parking != null)
+{
+    <div style="grid-column: 1 / -1; margin-top: 1rem;">
+        <ParkingStats ParkingId="@Id" />
+    </div>
+} *@
+
+@code {
+    private List<OccupancyLogDto> history = new();
+    private bool historyLoading = false;
+    private string historyView = "chart";
+
+    class OccupancyLogDto
+    {
+        public int FreeSpots { get; set; }
+        public int BusySpots { get; set; }
+        public int TotalSpots { get; set; }
+        public DateTime RecordedAt { get; set; }
+    }
+
+    private async Task LoadHistory()
+    {
+        historyLoading = true;
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                "http://apiservice/api/parkings/" + Id + "/occupancy/history");
+            if (!string.IsNullOrEmpty(authToken))
+                req.Headers.Authorization = new("Bearer", authToken);
+            var resp = await client.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+            {
+                history = await resp.Content
+                    .ReadFromJsonAsync<List<OccupancyLogDto>>() ?? new();
+                // Сортируем старые → новые для графика
+                history = history.OrderBy(h => h.RecordedAt).ToList();
+            }
+        }
+        catch { }
+        finally { historyLoading = false; }
+    }
+
+    private async Task SwitchView(string view)
+    {
+        historyView = view;
+        StateHasChanged();
+        if (view == "chart" && history.Count > 0)
+            await RenderChart();
+    }
+
+    private async Task RenderChart()
+    {
+        await Task.Delay(50); // ждём рендер canvas
+        var labels = history
+            .Select(h => h.RecordedAt.ToLocalTime().ToString("dd.MM HH:mm"))
+            .ToArray();
+        var busy = history.Select(h => h.BusySpots).ToArray();
+        var free = history.Select(h => h.FreeSpots).ToArray();
+        await JS.InvokeVoidAsync("occupancyChart.render",
+            "occupancyChart", labels, busy, free);
+    }
+
+    [Parameter] public int Id { get; set; }
+
+    class ParkingDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Address { get; set; } = "";
+        public string? StreamUrl { get; set; }
+        public string StreamType { get; set; } = "JPG";
+        public int RefreshInterval { get; set; } = 5;
+        public int FreeSpots { get; set; }
+        public int BusySpots { get; set; }
+        public int UserId { get; set; }
+        public DateTime? LastCheckedAt { get; set; }
+    }
+
+    class JsSpace
+    {
+        public int Id { get; set; }
+        public List<JsPoint> Points { get; set; } = new();
+    }
+    class JsPoint { public double X { get; set; } public double Y { get; set; } }
+    class SaveSpacesRequest { public List<JsSpace> Spaces { get; set; } = new(); }
+
+    private ParkingDto? parking;
+    private bool isPageLoading = true;
+    private bool isDrawing = false;
+    private bool isSaving = false;
+    private bool isOwner = false;
+    private bool occupancyModeOn = false;
+    private int spaceCount = 0;
+    private string snapshotUrl = "";
+    private string saveMessage = "";
+    private string authToken = "";
+    private int currentUserId = 0;
+    private DotNetObjectReference<Parking>? selfRef;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try
+        {
+            authToken = await JS.InvokeAsync<string>("localStorage.getItem", "authToken") ?? "";
+            var userIdStr = await JS.InvokeAsync<string>("localStorage.getItem", "userId") ?? "0";
+            int.TryParse(userIdStr, out currentUserId);
+        }
+        catch { }
+
+        // Загружаем парковку
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                "http://apiservice/api/parkings/" + Id);
+            if (!string.IsNullOrEmpty(authToken))
+                req.Headers.Authorization = new("Bearer", authToken);
+            var resp = await client.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+                parking = await resp.Content.ReadFromJsonAsync<ParkingDto>();
+        }
+        catch { }
+        finally { isPageLoading = false; }
+
+        if (parking == null) { StateHasChanged(); return; }
+
+        isOwner = parking.UserId == currentUserId;
+
+        if (parking.StreamUrl != null)
+        {
+            var encodedUrl = Uri.EscapeDataString(parking.StreamUrl);
+            snapshotUrl = parking.StreamType == "MJPEG"
+                ? "/api/camera/snapshot?type=MJPEG&url=" + encodedUrl
+                : "/api/camera/snapshot?url=" + encodedUrl;
+        }
+
+        StateHasChanged();
+
+        // Инициализируем canvas
+        selfRef = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("parkingCanvas.init", "parkingCanvas", selfRef);
+        await JS.InvokeVoidAsync("parkingCanvas.startLive", "parkingImage",
+                                 parking.RefreshInterval * 1000);
+
+        // Загружаем разметку и статус занятости
+        await LoadSpaces();
+
+        await LoadHistory();
+        StateHasChanged();
+        if (history.Count > 0)
+            await RenderChart();
+    }
+
+    private async Task LoadSpaces()
+    {
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                "http://apiservice/api/parkings/" + Id + "/spaces");
+            if (!string.IsNullOrEmpty(authToken))
+                req.Headers.Authorization = new("Bearer", authToken);
+            var resp = await client.SendAsync(req);
+
+            if (resp.IsSuccessStatusCode)
+            {
+                var json = await resp.Content.ReadAsStringAsync();
+                // Передаём в JS: загружает полигоны + статус занятости
+                await JS.InvokeVoidAsync("parkingCanvas.setOccupancy", json);
+                // Для владельца — также загружаем как обычную разметку
+                if (isOwner)
+                    await JS.InvokeVoidAsync("parkingCanvas.loadSpaces", json);
+                spaceCount = await JS.InvokeAsync<int>("parkingCanvas.getSpaceCount");
+
+                // Не-владелец сразу включает режим подсветки
+                if (!isOwner && spaceCount > 0)
+                {
+                    occupancyModeOn = true;
+                    await JS.InvokeVoidAsync("parkingCanvas.enableOccupancyMode");
+                }
+                StateHasChanged();
+            }
+        }
+        catch { }
+    }
+
+    private async Task ToggleOccupancyMode()
+    {
+        occupancyModeOn = !occupancyModeOn;
+        if (occupancyModeOn)
+            await JS.InvokeVoidAsync("parkingCanvas.enableOccupancyMode");
+        else
+            await JS.InvokeVoidAsync("parkingCanvas.disableOccupancyMode");
+    }
+
+    private async Task ToggleDraw()
+    {
+        isDrawing = !isDrawing;
+        if (isDrawing)
+            await JS.InvokeVoidAsync("parkingCanvas.enableDraw", "parkingImage");
+        else
+            await JS.InvokeVoidAsync("parkingCanvas.disableDraw");
+    }
+
+    private async Task UndoLast()
+    {
+        await JS.InvokeVoidAsync("parkingCanvas.undoLast");
+        spaceCount = await JS.InvokeAsync<int>("parkingCanvas.getSpaceCount");
+    }
+
+    private async Task ClearAll()
+    {
+        await JS.InvokeVoidAsync("parkingCanvas.clearAll");
+        spaceCount = 0; saveMessage = "";
+    }
+
+    private async Task SaveSpaces()
+    {
+        isSaving = true; saveMessage = "";
+        try
+        {
+            var raw = await JS.InvokeAsync<string>("parkingCanvas.getSpaces");
+            var jsSpaces = JsonSerializer.Deserialize<List<JsSpace>>(raw,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                "http://apiservice/api/parkings/" + Id + "/spaces");
+            req.Headers.Authorization = new("Bearer", authToken);
+            req.Content = JsonContent.Create(new SaveSpacesRequest { Spaces = jsSpaces });
+
+            var resp = await client.SendAsync(req);
+            saveMessage = resp.IsSuccessStatusCode
+                ? "✅ Сохранено — " + spaceCount + " мест"
+                : "⚠ Ошибка сохранения";
+        }
+        catch { saveMessage = "⚠ Ошибка подключения"; }
+        finally { isSaving = false; }
+    }
+
+    [JSInvokable]
+    public void OnSpaceAdded(int count)
+    {
+        spaceCount = count;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("parkingCanvas.dispose"); } catch { }
+        selfRef?.Dispose();
+    }
+}

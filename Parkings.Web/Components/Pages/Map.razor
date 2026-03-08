@@ -1,0 +1,44 @@
+﻿@page "/map"
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@inject IHttpClientFactory ClientFactory
+
+<HeadContent>
+    <link rel="stylesheet" href="css/myparkings.css" />
+</HeadContent>
+
+<div style="padding: 1rem;">
+    <div id="mainMap" style="width:100%; height:calc(100vh - 120px); border-radius:0.5rem; border:1px solid #d9d9d9;"></div>
+</div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // Загружаем публичные парковки
+        List<PublicParkingDto> parkings = new();
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            var resp = await client.GetAsync("http://apiservice/api/parkings/public");
+            if (resp.IsSuccessStatusCode)
+                parkings = await resp.Content.ReadFromJsonAsync<List<PublicParkingDto>>() ?? new();
+        }
+        catch { }
+
+        await JS.InvokeVoidAsync("parkingMap.init", "mainMap",
+            System.Text.Json.JsonSerializer.Serialize(parkings));
+    }
+
+    class PublicParkingDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Address { get; set; } = "";
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public int FreeSpots { get; set; }
+        public int BusySpots { get; set; }
+    }
+}

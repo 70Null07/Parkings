@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Parkings.ApiService/Parkings.ApiService.csproj" />
+  <Project Path="Parkings.AppHost/Parkings.AppHost.csproj" />
+  <Project Path="Parkings.ServiceDefaults/Parkings.ServiceDefaults.csproj" />
+  <Project Path="Parkings.Web/Parkings.Web.csproj" />
+  <Project Path="Parkings.Worker/Parkings.Worker.csproj" />
+</Solution>

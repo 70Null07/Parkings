@@ -1,0 +1,195 @@
+﻿@rendermode InteractiveServer
+@inject IHttpClientFactory ClientFactory
+@inject IJSRuntime JS
+
+<div class="pk-card pk-stats-card">
+    <div class="pk-card-header">
+        <h2 class="pk-card-title">📊 История загруженности</h2>
+    </div>
+
+    <div class="pk-card-body">
+
+        <!-- Фильтры -->
+        <div class="pk-stats-filters">
+            <div class="pk-stats-filter-group">
+                <label class="pk-label">С</label>
+                <input type="date" class="pk-input-sm"
+                       @bind="filterFrom" @bind:event="oninput" />
+            </div>
+            <div class="pk-stats-filter-group">
+                <label class="pk-label">По</label>
+                <input type="date" class="pk-input-sm"
+                       @bind="filterTo" @bind:event="oninput" />
+            </div>
+            <div class="pk-stats-filter-group">
+                <label class="pk-label">Группировка</label>
+                <select class="pk-input-sm" @bind="groupBy">
+                    <option value="raw">Все записи</option>
+                    <option value="hour">По часам</option>
+                    <option value="day">По дням</option>
+                </select>
+            </div>
+            <button class="pk-btn pk-btn-emphasized pk-btn-sm" @onclick="LoadHistory">
+                🔍 Применить
+            </button>
+            <button class="pk-btn pk-btn-default pk-btn-sm" @onclick="ResetFilters">
+                ✕ Сбросить
+            </button>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="pk-stats-empty">⏳ Загрузка...</div>
+        }
+        else if (history.Count == 0)
+        {
+            <div class="pk-stats-empty">Нет данных за выбранный период</div>
+        }
+        else
+        {
+            <!-- Сводка -->
+            <div class="pk-stats-summary">
+                <div class="pk-stat-chip">
+                    <span class="pk-stat-chip-label">Записей</span>
+                    <span class="pk-stat-chip-val">@history.Count</span>
+                </div>
+                <div class="pk-stat-chip">
+                    <span class="pk-stat-chip-label">Ср. занято</span>
+                    <span class="pk-stat-chip-val busy">
+                        @history.Average(h => h.BusySpots).ToString("F1")
+                    </span>
+                </div>
+                <div class="pk-stat-chip">
+                    <span class="pk-stat-chip-label">Макс. занято</span>
+                    <span class="pk-stat-chip-val busy">@history.Max(h => h.BusySpots)</span>
+                </div>
+                <div class="pk-stat-chip">
+                    <span class="pk-stat-chip-label">Ср. свободно</span>
+                    <span class="pk-stat-chip-val free">
+                        @history.Average(h => h.FreeSpots).ToString("F1")
+                    </span>
+                </div>
+            </div>
+
+            <!-- Таблица -->
+            <div class="pk-stats-table-wrap">
+                <table class="pk-stats-table">
+                    <thead>
+                        <tr>
+                            <th @onclick='() => SetSort("date")' class="pk-th-sortable">
+                                Дата и время @SortIcon("date")
+                            </th>
+                            <th @onclick='() => SetSort("busy")' class="pk-th-sortable">
+                                Занято @SortIcon("busy")
+                            </th>
+                            <th @onclick='() => SetSort("free")' class="pk-th-sortable">
+                                Свободно @SortIcon("free")
+                            </th>
+                            <th>Всего</th>
+                            <th>Загруженность</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in SortedHistory)
+                        {
+                            var pct = row.TotalSpots > 0
+                            ? (int)(row.BusySpots * 100.0 / row.TotalSpots)
+                            : 0;
+                            <tr>
+                                <td>@row.RecordedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                <td><span class="pk-stat-busy">@row.BusySpots</span></td>
+                                <td><span class="pk-stat-free">@row.FreeSpots</span></td>
+                                <td>@row.TotalSpots</td>
+                                <td>
+                                    <div class="pk-progress">
+                                        <div class="pk-progress-bar"
+                                             style="width:@pct%; background:@(pct > 80 ? "#BB0000" : pct > 50 ? "#E9730C" : "#107E3E")">
+                                        </div>
+                                        <span class="pk-progress-label">@pct%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int ParkingId { get; set; }
+
+    class HistoryRow
+    {
+        public DateTime RecordedAt { get; set; }
+        public int FreeSpots { get; set; }
+        public int BusySpots { get; set; }
+        public int TotalSpots { get; set; }
+    }
+
+    private List<HistoryRow> history = new();
+    private bool isLoading = false;
+
+    private DateTime filterFrom = DateTime.Today.AddDays(-7);
+    private DateTime filterTo = DateTime.Today.AddDays(1);
+    private string groupBy = "hour";
+
+    private string sortField = "date";
+    private bool sortAsc = false;
+
+    private IEnumerable<HistoryRow> SortedHistory => sortField switch
+    {
+        "busy" => sortAsc
+            ? history.OrderBy(h => h.BusySpots)
+            : history.OrderByDescending(h => h.BusySpots),
+        "free" => sortAsc
+            ? history.OrderBy(h => h.FreeSpots)
+            : history.OrderByDescending(h => h.FreeSpots),
+        _ => sortAsc
+            ? history.OrderBy(h => h.RecordedAt)
+            : history.OrderByDescending(h => h.RecordedAt)
+    };
+
+    private string SortIcon(string field) =>
+        sortField == field ? (sortAsc ? "↑" : "↓") : "";
+
+    private void SetSort(string field)
+    {
+        if (sortField == field) sortAsc = !sortAsc;
+        else { sortField = field; sortAsc = false; }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadHistory();
+    }
+
+    private async Task LoadHistory()
+    {
+        isLoading = true;
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            var url = $"http://apiservice/api/parkings/{ParkingId}/occupancy/history" +
+                      $"?from={filterFrom:yyyy-MM-dd}" +
+                      $"&to={filterTo:yyyy-MM-dd}" +
+                      $"&group={groupBy}";
+
+            var resp = await client.GetAsync(url);
+            if (resp.IsSuccessStatusCode)
+                history = await resp.Content
+                    .ReadFromJsonAsync<List<HistoryRow>>() ?? new();
+        }
+        catch { }
+        finally { isLoading = false; }
+    }
+
+    private async Task ResetFilters()
+    {
+        filterFrom = DateTime.Today.AddDays(-7);
+        filterTo = DateTime.Today.AddDays(1);
+        groupBy = "hour";
+        await LoadHistory();
+    }
+}

@@ -1,0 +1,388 @@
+﻿@page "/myparkings"
+@rendermode InteractiveServer
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<HeadContent>
+    <link rel="stylesheet" href="css/myparkings.css" />
+</HeadContent>
+
+<div class="mp-content">
+
+    <div class="mp-toolbar">
+        <span class="mp-title">
+            Мои парковки
+            <span class="mp-count">(@parkings.Count)</span>
+        </span>
+        <button class="mp-btn mp-btn-emphasized mp-btn-lg" @onclick="OpenCreate" disabled="@isLoading">
+            + Добавить парковку
+        </button>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="mp-empty">
+            <span class="mp-empty-icon">⏳</span>
+            <span class="mp-empty-title">Загрузка...</span>
+        </div>
+    }
+    else
+    {
+        <div class="mp-grid">
+            @if (parkings.Count == 0)
+            {
+                <div class="mp-empty">
+                    <span class="mp-empty-icon">🅿</span>
+                    <span class="mp-empty-title">Нет парковок</span>
+                    <span class="mp-empty-sub">Нажмите «Добавить парковку» чтобы начать</span>
+                </div>
+            }
+            else
+            {
+                @foreach (var p in parkings)
+                {
+                    <div class="mp-card">
+                        <div class="mp-card-header">
+                            <div class="mp-card-icon">🅿</div>
+                            <div class="mp-card-info">
+                                <div class="mp-card-name" title="@p.Name">@p.Name</div>
+                                <div class="mp-card-address" title="@p.Address">@p.Address</div>
+                            </div>
+                            <span class="mp-card-badge @(p.StreamType == "MJPEG" ? "mp-badge-mjpeg" : "mp-badge-jpg")">
+                                @p.StreamType
+                            </span>
+                        </div>
+
+                        <div class="mp-card-stats">
+                            <div class="mp-stat">
+                                <span class="mp-stat-value free">@p.FreeSpots</span>
+                                <span class="mp-stat-label">Свободно</span>
+                            </div>
+                            <div class="mp-stat">
+                                <span class="mp-stat-value busy">@p.BusySpots</span>
+                                <span class="mp-stat-label">Занято</span>
+                            </div>
+                            <div class="mp-stat">
+                                <span class="mp-stat-value total">@(p.FreeSpots + p.BusySpots)</span>
+                                <span class="mp-stat-label">Всего</span>
+                            </div>
+                        </div>
+
+                        <div class="mp-card-footer">
+                            <button class="mp-btn mp-btn-ghost"
+                                @onclick="() => GoParking(p.Id)">
+                                📍 Разметка
+                            </button>
+                            <button class="mp-btn mp-btn-ghost" @onclick="() => OpenEdit(p)">
+                                ✏ Изменить
+                            </button>
+                            <button class="mp-btn mp-btn-negative" @onclick="() => DeleteParking(p.Id)">
+                                🗑
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="mp-error-banner">⚠ @errorMessage</div>
+    }
+</div>
+
+<!-- Modal -->
+@if (showDialog)
+{
+    <div class="mp-overlay" @onclick="CloseDialog">
+        <div class="mp-dialog" @onclick:stopPropagation="true">
+
+            <div class="mp-dialog-header">
+                <span class="mp-dialog-title">@(editingId == null ? "Новая парковка" : "Редактировать парковку")</span>
+                <button class="mp-dialog-close" @onclick="CloseDialog">✕</button>
+            </div>
+
+            <div class="mp-dialog-body">
+
+                <div class="mp-field">
+                    <label class="mp-label">Название <span class="mp-required">*</span></label>
+                    <input class="mp-input @(nameError ? "error" : "")"
+                           placeholder="Например: Парковка ТЦ Мега"
+                           @bind="form.Name" @bind:event="oninput" />
+                    @if (nameError) { <span class="mp-error-msg">Введите название</span> }
+                </div>
+
+                <div class="mp-field">
+                    <label class="mp-label">Адрес <span class="mp-required">*</span></label>
+                    <input class="mp-input @(addressError ? "error" : "")"
+                           placeholder="ул. Примерная, 1"
+                           @bind="form.Address" @bind:event="oninput" />
+                    @if (addressError) { <span class="mp-error-msg">Введите адрес</span> }
+                </div>
+
+                <div class="mp-field">
+                    <label class="mp-label">Координаты</label>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <input class="mp-input" style="flex:1"
+                               placeholder="Широта"
+                               type="number" step="0.000001"
+                               @bind="form.Latitude" @bind:event="oninput" />
+                        <input class="mp-input" style="flex:1"
+                               placeholder="Долгота"
+                               type="number" step="0.000001"
+                               @bind="form.Longitude" @bind:event="oninput" />
+                    </div>
+                    <button class="mp-btn mp-btn-default" style="margin-top:0.5rem"
+                            @onclick="OpenMapPicker">
+                        🗺 Выбрать на карте
+                    </button>
+                </div>
+
+                @if (showMapPicker)
+                {
+                    <div class="mp-field">
+                        <div id="addressPickerMap" style="width:100%; height:260px; border-radius:0.375rem; border:1px solid #ccc;"></div>
+                        <span class="mp-kv-label" style="font-size:0.75rem; margin-top:4px;">
+                            Кликните на карте чтобы выбрать точку
+                        </span>
+                    </div>
+                }
+
+                <div class="mp-field">
+                    <label class="mp-label">Ссылка на поток</label>
+                    <input class="mp-input"
+                           placeholder="http://192.168.1.1:8080/video.jpg"
+                           @bind="form.StreamUrl" @bind:event="oninput" />
+                </div>
+
+                <div class="mp-field">
+                    <label class="mp-label">Тип потока</label>
+                    <div class="mp-type-group">
+                        <button class="mp-type-btn @(form.StreamType == "JPG" ? "selected" : "")"
+                                @onclick='() => form.StreamType = "JPG"'>
+                            📷 JPG
+                        </button>
+                        <button class="mp-type-btn @(form.StreamType == "MJPEG" ? "selected-mjpeg" : "")"
+                                @onclick='() => form.StreamType = "MJPEG"'>
+                            🎥 MJPEG
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mp-field">
+                    <label class="mp-label">Интервал обновления (сек) <span class="mp-required">*</span></label>
+                    <input class="mp-input"
+                           type="number" min="1" max="3600"
+                           placeholder="5"
+                           @bind="form.RefreshInterval" @bind:event="oninput" />
+                </div>
+
+            </div>
+
+            <div class="mp-dialog-footer">
+                <button class="mp-btn mp-btn-default" @onclick="CloseDialog">Отмена</button>
+                <button class="mp-btn mp-btn-emphasized" @onclick="SaveParking" disabled="@isSaving">
+                    @(isSaving ? "Сохранение..." : (editingId == null ? "Создать" : "Сохранить"))
+                </button>
+            </div>
+
+        </div>
+    </div>
+}
+
+@code {
+    // ── DTOs (локальные копии, чтобы не тащить зависимость от ApiService) ──
+    class ParkingDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Address { get; set; } = "";
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string? StreamUrl { get; set; }
+        public string StreamType { get; set; } = "JPG";
+        public int RefreshInterval { get; set; } = 5;
+        public int FreeSpots { get; set; }
+        public int BusySpots { get; set; }
+    }
+
+    private bool showMapPicker = false;
+
+    class FormModel
+    {
+        public string Name { get; set; } = "";
+        public string Address { get; set; } = "";
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string StreamUrl { get; set; } = "";
+        public string StreamType { get; set; } = "JPG";
+        public int RefreshInterval { get; set; } = 5;
+    }
+
+    // ── State ──
+    private List<ParkingDto> parkings = new();
+    private bool showDialog = false;
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string errorMessage = "";
+    private int? editingId = null;
+    private FormModel form = new();
+    private bool nameError = false;
+    private bool addressError = false;
+
+    private string authToken = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                // Читаем токен так же как в Profile.razor
+                authToken = await JS.InvokeAsync<string>("localStorage.getItem", "authToken") ?? "";
+            }
+            catch { }
+
+            await LoadParkings();
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadParkings()
+    {
+        isLoading = true;
+        errorMessage = "";
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, "http://apiservice/api/parkings");
+            req.Headers.Authorization = new("Bearer", authToken);
+            var resp = await Http.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+                parkings = await resp.Content.ReadFromJsonAsync<List<ParkingDto>>() ?? new();
+            else
+                errorMessage = "Не удалось загрузить парковки";
+        }
+        catch { errorMessage = "Ошибка подключения к API"; }
+        finally { isLoading = false; }
+    }
+
+    private void OpenCreate()
+    {
+        editingId = null;
+        form = new FormModel();
+        nameError = addressError = false;
+        showDialog = true;
+    }
+
+    private void OpenEdit(ParkingDto p)
+    {
+        editingId = p.Id;
+        form = new FormModel
+        {
+            Name = p.Name,
+            Address = p.Address,
+            Latitude = p.Latitude,   // ← добавить
+            Longitude = p.Longitude,  // ← добавить
+            StreamUrl = p.StreamUrl ?? "",
+            StreamType = p.StreamType,
+            RefreshInterval = p.RefreshInterval
+        };
+        nameError = addressError = false;
+        showDialog = true;
+    }
+
+    private void CloseDialog() => showDialog = false;
+
+    private async Task SaveParking()
+    {
+        nameError    = string.IsNullOrWhiteSpace(form.Name);
+        addressError = string.IsNullOrWhiteSpace(form.Address);
+        if (nameError || addressError) return;
+
+        isSaving = true;
+        errorMessage = "";
+        try
+        {
+            var body = new
+            {
+                name = form.Name.Trim(),
+                address = form.Address.Trim(),
+                latitude = form.Latitude,
+                longitude = form.Longitude,
+                streamUrl = form.StreamUrl.Trim(),
+                streamType = form.StreamType,
+                refreshInterval = form.RefreshInterval
+            };
+
+            HttpResponseMessage resp;
+            if (editingId == null)
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Post, "http://apiservice/api/parkings");
+                req.Headers.Authorization = new("Bearer", authToken);
+                req.Content = JsonContent.Create(body);
+                resp = await Http.SendAsync(req);
+            }
+            else
+            {
+                using var req = new HttpRequestMessage(HttpMethod.Put, $"http://apiservice/api/parkings/{editingId}");
+                req.Headers.Authorization = new("Bearer", authToken);
+                req.Content = JsonContent.Create(body);
+                resp = await Http.SendAsync(req);
+            }
+
+            if (resp.IsSuccessStatusCode)
+            {
+                showDialog = false;
+                await LoadParkings();
+            }
+            else
+            {
+                errorMessage = "Не удалось сохранить парковку";
+            }
+        }
+        catch { errorMessage = "Ошибка подключения к API"; }
+        finally { isSaving = false; }
+    }
+
+    private async Task DeleteParking(int id)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Delete, $"https+http://apiservice/api/parkings/{id}");
+            req.Headers.Authorization = new("Bearer", authToken);
+            var resp = await Http.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+                parkings.RemoveAll(x => x.Id == id);
+            else
+                errorMessage = "Не удалось удалить парковку";
+        }
+        catch { errorMessage = "Ошибка подключения к API"; }
+    }
+    private void GoParking(int id)
+    {
+        Nav.NavigateTo("/parking/" + id);
+    }
+    private async Task OpenMapPicker()
+    {
+        showMapPicker = true;
+        StateHasChanged();
+        await Task.Delay(100); // ждём рендер
+        await JS.InvokeVoidAsync("parkingMapPicker.init",
+            "addressPickerMap",
+            form.Latitude ?? 59.94,
+            form.Longitude ?? 30.32,
+            DotNetObjectReference.Create(this));
+    }
+
+    [JSInvokable]
+    public async Task OnMapPicked(double lat, double lon, string address)
+    {
+        form.Latitude = lat;
+        form.Longitude = lon;
+        if (!string.IsNullOrEmpty(address))
+            form.Address = address;
+        StateHasChanged();
+    }
+}
