@@ -22,7 +22,15 @@ builder.Services.AddHttpClient("api")
 
 builder.Services.AddHttpClient("camera", client =>
 {
-    client.Timeout = TimeSpan.FromSeconds(15);
+    var timeoutSeconds = builder.Configuration.GetValue<int?>("Worker:CameraTimeoutSeconds") ?? 30;
+    client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+})
+.AddStandardResilienceHandler(options =>
+{
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(45);
+    options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(20);
+    options.Retry.MaxRetryAttempts = 2;
+    options.Retry.Delay = TimeSpan.FromSeconds(2);
 });
 
 builder.Services.AddSingleton<YoloDetector>(sp =>
