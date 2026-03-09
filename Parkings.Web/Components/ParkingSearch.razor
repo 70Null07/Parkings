@@ -1,0 +1,144 @@
+﻿@rendermode InteractiveServer
+@inject IHttpClientFactory ClientFactory
+@inject NavigationManager Nav
+
+<div class="ps-wrap">
+    <input type="text"
+           class="ps-input"
+           placeholder="Поиск парковки..."
+           @bind="query"
+           @oninput="OnInput"
+           @onfocus="OnFocus"
+           @onblur="OnBlur"
+           autocomplete="off" />
+
+    @if (showDropdown && results.Count > 0)
+    {
+        <div class="ps-dropdown">
+            @foreach (var p in results)
+            {
+                var parking = p;
+                <div class="ps-item" @onmousedown="() => GoToParking(parking)">
+                    <div class="ps-item-main">
+                        <span class="ps-item-name">@p.Name</span>
+                        @if (p.FreeSpots > 0)
+                        {
+                            <span class="ps-item-badge ps-badge-free">@p.FreeSpots св.</span>
+                        }
+                        else
+                        {
+                            <span class="ps-item-badge ps-badge-busy">нет мест</span>
+                        }
+                    </div>
+                    <div class="ps-item-address">@p.Address</div>
+                </div>
+            }
+        </div>
+    }
+    else if (showDropdown && query.Length >= 2 && !isLoading && results.Count == 0)
+    {
+        <div class="ps-dropdown">
+            <div class="ps-item-empty">Ничего не найдено</div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool FocusMapMode { get; set; } = false;
+    [Parameter] public EventCallback<ParkingResult> OnParkingSelected { get; set; }
+
+    public class ParkingResult
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Address { get; set; } = "";
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public int FreeSpots { get; set; }
+        public int BusySpots { get; set; }
+    }
+
+    private string query = "";
+    private List<ParkingResult> allParkings = new();
+    private List<ParkingResult> results = new();
+    private bool showDropdown = false;
+    private bool isLoading = false;
+    private bool dataLoaded = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || dataLoaded) return;
+        await LoadAllParkings();
+        dataLoaded = true;
+    }
+
+    private async Task LoadAllParkings()
+    {
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            var resp = await client.GetAsync("http://apiservice/api/parkings/public");
+            if (resp.IsSuccessStatusCode)
+                allParkings = await resp.Content
+                    .ReadFromJsonAsync<List<ParkingResult>>() ?? new();
+        }
+        catch { }
+    }
+
+    private void OnInput(ChangeEventArgs e)
+    {
+        query = e.Value?.ToString() ?? "";
+        Search();
+    }
+
+    private void OnFocus()
+    {
+        if (query.Length >= 2)
+            showDropdown = true;
+    }
+
+    private void OnBlur()
+    {
+        // Задержка чтобы успел сработать onmousedown на item
+        Task.Delay(200).ContinueWith(_ =>
+        {
+            showDropdown = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void Search()
+    {
+        if (query.Length < 2)
+        {
+            results = new();
+            showDropdown = false;
+            return;
+        }
+
+        var q = query.ToLower();
+        results = allParkings
+            .Where(p => p.Name.ToLower().Contains(q) || p.Address.ToLower().Contains(q))
+            .Take(6)
+            .ToList();
+
+        showDropdown = true;
+    }
+
+    private async Task GoToParking(ParkingResult p)
+    {
+        showDropdown = false;
+        query = p.Name;
+
+        if (FocusMapMode)
+        {
+            // На странице карты — уведомляем родителя
+            await OnParkingSelected.InvokeAsync(p);
+        }
+        else
+        {
+            // В шапке — переходим на страницу парковки
+            Nav.NavigateTo("/parking/" + p.Id);
+        }
+    }
+}

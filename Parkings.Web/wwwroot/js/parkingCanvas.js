@@ -311,7 +311,9 @@ window.parkingCanvas = (() => {
 
         disableOccupancyMode() {
             occupancyMode = false;
-            redraw();
+            /*redraw();*/
+
+            if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
         },
     };
 })();

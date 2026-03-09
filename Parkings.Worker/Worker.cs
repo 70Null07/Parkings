@@ -38,7 +38,7 @@ namespace Parkings.Worker
 
             // Получаем все парковки с полигонами
             using var req = new HttpRequestMessage(HttpMethod.Get,
-                "http://apiservice/api/parkings/with-spaces");
+                $"https+http://apiservice/api/parkings/with-spaces");
             req.Headers.Add("X-Worker-Key", workerKey);
             var resp = await apiClient.SendAsync(req, ct);
 

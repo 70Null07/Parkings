@@ -16,9 +16,9 @@
     <link rel="stylesheet" href="css/parking.css" />
     <script src="/js/mapPicker.js"></script>
     <script src="/js/parkingMap.js"></script>
-    <script src="/js/mapPicker.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="/js/occupancyChart.js"></script>
+    <link rel="stylesheet" href="css/parkingSearch.css" />
 </head>
 
 <body style="background-image:url(/img/background.jpg);">
@@ -30,9 +30,7 @@
             </div>
 
             <div class="top-search">
-                <input type="text"
-                       placeholder="Поиск парковки..."
-                       class="search-input" />
+                <ParkingSearch />
             </div>
 
             <nav class="top-nav">

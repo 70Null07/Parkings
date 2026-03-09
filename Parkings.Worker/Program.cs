@@ -29,6 +29,7 @@ builder.Services.AddHttpClient("camera", client =>
 {
     options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(45);
     options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(20);
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(60);  // минимум AttemptTimeout * 2
     options.Retry.MaxRetryAttempts = 2;
     options.Retry.Delay = TimeSpan.FromSeconds(2);
 });

@@ -1,4 +1,7 @@
 ﻿window.parkingMap = {
+    map: null,
+    placemarks: {},
+
     init(elementId, parkingsJson) {
         const tryInit = () => {
             if (typeof ymaps === 'undefined' || !ymaps.Map) {
@@ -8,26 +11,25 @@
 
             ymaps.ready(() => {
                 const parkings = JSON.parse(parkingsJson);
-                console.log('Parkings for map:', parkings); // для отладки
 
-                const map = new ymaps.Map(elementId, {
+                this.map = new ymaps.Map(elementId, {
                     center: [59.94, 30.32],
                     zoom: 11,
                     controls: ['zoomControl', 'fullscreenControl']
                 });
 
-                parkings.forEach(p => {
-                    // C# JsonSerializer даёт PascalCase — читаем оба варианта
-                    const lat = p.Latitude ?? p.latitude;
-                    const lon = p.Longitude ?? p.longitude;
-                    const id = p.Id ?? p.id;
+                this.placemarks = {};
 
+                parkings.forEach(p => {
+                    const lat = p.latitude;
+                    const lon = p.longitude;
                     if (!lat || !lon) return;
 
-                    const freeSpots = p.FreeSpots ?? p.freeSpots ?? 0;
-                    const busySpots = p.BusySpots ?? p.busySpots ?? 0;
-                    const name = p.Name ?? p.name ?? '';
-                    const address = p.Address ?? p.address ?? '';
+                    const freeSpots = p.freeSpots ?? 0;
+                    const busySpots = p.busySpots ?? 0;
+                    const name = p.name ?? '';
+                    const address = p.address ?? '';
+                    const id = p.id;
 
                     const placemark = new ymaps.Placemark(
                         [lat, lon],
@@ -60,19 +62,33 @@
                         }
                     );
 
-                    map.geoObjects.add(placemark);
+                    this.map.geoObjects.add(placemark);
+                    this.placemarks[id] = placemark;
                 });
 
-                // Подгоняем вид если есть метки
-                if (map.geoObjects.getLength() > 0) {
-                    map.setBounds(map.geoObjects.getBounds(), {
-                        checkZoomRange: true,
-                        zoomMargin: 60
-                    });
+                if (this.map.geoObjects.getLength() > 0) {
+                    try {
+                        this.map.setBounds(this.map.geoObjects.getBounds(), {
+                            checkZoomRange: true,
+                            zoomMargin: 60
+                        });
+                    } catch (e) { }
                 }
             });
         };
 
         tryInit();
+    },
+
+    focusOn(lat, lon, parkingId) {
+        if (!this.map) return;
+
+        this.map.setCenter([lat, lon], 16, { duration: 400 });
+
+        // Открываем балун если метка есть
+        const placemark = this.placemarks[parkingId];
+        if (placemark) {
+            placemark.balloon.open();
+        }
     }
 };

@@ -74,100 +74,77 @@
                 </div>
             </div>
 
-            @if (isOwner)
-            {
-                <div class="pk-card">
-                    <div class="pk-card-header">
-                        <h2 class="pk-card-title">Режим отображения</h2>
-                    </div>
-                    <div class="pk-card-body">
-                        <button class="pk-btn @(occupancyModeOn ? "pk-btn-emphasized" : "pk-btn-default")"
-                                @onclick="ToggleOccupancyMode"
-                                disabled="@isDrawing">
-                            @(occupancyModeOn ? "🟢 Подсветка включена" : "➕ Показать полигоны")
-                        </button>
-                        @if (occupancyModeOn)
-                        {
-                            <div class="pk-info-strip" style="margin-top:0.5rem">
-                                <span></span>
-                                <div>
-                                    <span style="color:#22aa22">■</span> Свободно &nbsp;
-                                    <span style="color:#cc2222">■</span> Занято
-                                </div>
-                            </div>
-                        }
-                    </div>
+            <!-- Режим отображения — для всех -->
+            <div class="pk-card">
+                <div class="pk-card-header">
+                    <h2 class="pk-card-title">Отображение</h2>
                 </div>
+                <div class="pk-card-body">
 
-                <div class="pk-card">
-                    <div class="pk-card-header">
-                        <h2 class="pk-card-title">Разметка</h2>
-                    </div>
-                    <div class="pk-card-body">
-                        <button class="pk-btn @(isDrawing ? "pk-btn-attention" : "pk-btn-emphasized")"
-                                @onclick="ToggleDraw">
-                            @(isDrawing ? "⏹ Завершить редактирование" : "✏ Изменить разметку")
-                        </button>
-                        <button class="pk-btn pk-btn-positive"
-                                @onclick="SaveSpaces"
-                                disabled="@(spaceCount == 0 || isSaving)">
-                            @(isSaving ? "⏳ Сохранение..." : "💾 Сохранить разметку")
-                        </button>
-                        <button class="pk-btn pk-btn-default"
-                                @onclick="UndoLast"
-                                disabled="@(!isDrawing)">
-                            ↩ Отменить последнее
-                        </button>
-                        <button class="pk-btn pk-btn-negative"
-                                @onclick="ClearAll"
-                                disabled="@(spaceCount == 0)">
-                            🗑 Очистить всё
-                        </button>
-                    </div>
-                </div>
+                    <button class="pk-btn @(viewMode == "live" ? "pk-btn-emphasized" : "pk-btn-default")"
+                            @onclick='() => SetViewMode("live")'>
+                        📷 Только видео
+                    </button>
 
-                <div class="pk-card">
-                    <div class="pk-card-header">
-                        <h2 class="pk-card-title">Как пользоваться</h2>
-                    </div>
-                    <div class="pk-card-body">
-                        <div class="pk-info-strip">
-                            <span>ℹ️</span>
+                    <button class="pk-btn @(viewMode == "occupancy" ? "pk-btn-emphasized" : "pk-btn-default")"
+                            @onclick='() => SetViewMode("occupancy")'>
+                        🟢 Показать загруженность
+                    </button>
+
+                    @if (viewMode == "occupancy")
+                    {
+                        <div class="pk-info-strip" style="margin-top:0.5rem">
+                            <span></span>
                             <div>
-                                <kbd>ЛКМ</kbd> — поставить точку<br />
-                                <kbd>ПКМ</kbd> — удалить точку / место<br />
-                                <strong>4 точки</strong> замыкаются в место.<br />
-                                Наведите мышь — место подсветится.
+                                <span style="color:#22aa22">■</span> Свободно &nbsp;
+                                <span style="color:#cc2222">■</span> Занято
                             </div>
                         </div>
-                    </div>
-                </div>
-            }
-            else
-            {
-                <!-- Не-владелец: режим подсветки -->
-                <div class="pk-card">
-                    <div class="pk-card-header">
-                        <h2 class="pk-card-title">Режим отображения</h2>
-                    </div>
-                    <div class="pk-card-body">
-                        <button class="pk-btn @(occupancyModeOn ? "pk-btn-emphasized" : "pk-btn-default")"
-                                @onclick="ToggleOccupancyMode">
-                            @(occupancyModeOn ? "🟢 Подсветка включена" : "🔘 Включить подсветку")
-                        </button>
-                        @if (occupancyModeOn)
+                    }
+
+                    @if (isOwner)
+                    {
+                        <hr style="border:none; border-top:1px solid #e0e0e0; margin:0.75rem 0;" />
+
+                        @if (viewMode != "draw")
                         {
+                            <button class="pk-btn pk-btn-attention"
+                                    @onclick='() => SetViewMode("draw")'>
+                                ✏ Изменить разметку
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="pk-btn pk-btn-attention"
+                                    @onclick='() => SetViewMode("live")'>
+                                ⏹ Завершить редактирование
+                            </button>
+                            <button class="pk-btn pk-btn-positive"
+                                    @onclick="SaveSpaces"
+                                    disabled="@(spaceCount == 0 || isSaving)">
+                                @(isSaving ? "⏳ Сохранение..." : "💾 Сохранить разметку")
+                            </button>
+                            <button class="pk-btn pk-btn-default"
+                                    @onclick="UndoLast">
+                                ↩ Отменить последнее
+                            </button>
+                            <button class="pk-btn pk-btn-negative"
+                                    @onclick="ClearAll"
+                                    disabled="@(spaceCount == 0)">
+                                🗑 Очистить всё
+                            </button>
                             <div class="pk-info-strip" style="margin-top:0.5rem">
-                                <span></span>
+                                <span>ℹ️</span>
                                 <div>
-                                    <span style="color:#22aa22">■</span> Свободно &nbsp;
-                                    <span style="color:#cc2222">■</span> Занято
+                                    <kbd>ЛКМ</kbd> — точка<br />
+                                    <kbd>ПКМ</kbd> — удалить<br />
+                                    <strong>4 точки</strong> = место
                                 </div>
                             </div>
                         }
-                    </div>
+                    }
                 </div>
-            }
+            </div>
 
             @if (!string.IsNullOrEmpty(saveMessage))
             {
@@ -177,6 +154,7 @@
                     </div>
                 </div>
             }
+
         </div>
     }
 </div>
@@ -190,60 +168,6 @@
 } 
 
 @code {
-    private List<OccupancyLogDto> history = new();
-    private bool historyLoading = false;
-    private string historyView = "chart";
-
-    class OccupancyLogDto
-    {
-        public int FreeSpots { get; set; }
-        public int BusySpots { get; set; }
-        public int TotalSpots { get; set; }
-        public DateTime RecordedAt { get; set; }
-    }
-
-    private async Task LoadHistory()
-    {
-        historyLoading = true;
-        try
-        {
-            var client = ClientFactory.CreateClient("api");
-            using var req = new HttpRequestMessage(HttpMethod.Get,
-                "http://apiservice/api/parkings/" + Id + "/occupancy/history");
-            if (!string.IsNullOrEmpty(authToken))
-                req.Headers.Authorization = new("Bearer", authToken);
-            var resp = await client.SendAsync(req);
-            if (resp.IsSuccessStatusCode)
-            {
-                history = await resp.Content
-                    .ReadFromJsonAsync<List<OccupancyLogDto>>() ?? new();
-                // Сортируем старые → новые для графика
-                history = history.OrderBy(h => h.RecordedAt).ToList();
-            }
-        }
-        catch { }
-        finally { historyLoading = false; }
-    }
-
-    private async Task SwitchView(string view)
-    {
-        historyView = view;
-        StateHasChanged();
-        if (view == "chart" && history.Count > 0)
-            await RenderChart();
-    }
-
-    private async Task RenderChart()
-    {
-        await Task.Delay(50); // ждём рендер canvas
-        var labels = history
-            .Select(h => h.RecordedAt.ToLocalTime().ToString("dd.MM HH:mm"))
-            .ToArray();
-        var busy = history.Select(h => h.BusySpots).ToArray();
-        var free = history.Select(h => h.FreeSpots).ToArray();
-        await JS.InvokeVoidAsync("occupancyChart.render",
-            "occupancyChart", labels, busy, free);
-    }
 
     [Parameter] public int Id { get; set; }
 
@@ -271,18 +195,21 @@
 
     private ParkingDto? parking;
     private bool isPageLoading = true;
-    private bool isDrawing = false;
+    // private bool isDrawing = false;
     private bool isSaving = false;
     private bool isOwner = false;
-    private bool occupancyModeOn = false;
+    // private bool occupancyModeOn = false;
     private string spacesJsonCache = "[]";
-    private bool hasSpacesLoadedForEditing = false;
+    // private bool hasSpacesLoadedForEditing = false;
     private int spaceCount = 0;
     private string snapshotUrl = "";
     private string saveMessage = "";
     private string authToken = "";
     private int currentUserId = 0;
     private DotNetObjectReference<Parking>? selfRef;
+    private string viewMode = "live"; // "live" | "occupancy" | "draw"
+    private bool isDrawing => viewMode == "draw";
+    private bool hasSpacesLoadedForEditing = false;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -333,11 +260,6 @@
 
         // Загружаем разметку и статус занятости
         await LoadSpaces();
-
-        await LoadHistory();
-        StateHasChanged();
-        if (history.Count > 0)
-            await RenderChart();
     }
 
     private async Task LoadSpaces()
@@ -345,30 +267,17 @@
         try
         {
             var client = ClientFactory.CreateClient("api");
-            using var req = new HttpRequestMessage(HttpMethod.Get,
+            var resp = await client.GetAsync(
                 "http://apiservice/api/parkings/" + Id + "/spaces");
-            if (!string.IsNullOrEmpty(authToken))
-                req.Headers.Authorization = new("Bearer", authToken);
-            var resp = await client.SendAsync(req);
 
             if (resp.IsSuccessStatusCode)
             {
                 var json = await resp.Content.ReadAsStringAsync();
                 spacesJsonCache = json;
 
-                // Для владельца не рисуем ничего по умолчанию, только считаем места
-                if (isOwner)
-                {
-                    var loaded = JsonSerializer.Deserialize<List<JsSpace>>(json,
-                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
-                    spaceCount = loaded.Count;
-                    occupancyModeOn = false;
-                }
-                else
-                {
-                    await JS.InvokeVoidAsync("parkingCanvas.setOccupancy", json);
-                    spaceCount = await JS.InvokeAsync<int>("parkingCanvas.getSpaceCount");
-                }
+                var loaded = JsonSerializer.Deserialize<List<JsSpace>>(json,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+                spaceCount = loaded.Count;
 
                 StateHasChanged();
             }
@@ -376,35 +285,37 @@
         catch { }
     }
 
-    private async Task ToggleOccupancyMode()
+    private async Task SetViewMode(string mode)
     {
-        occupancyModeOn = !occupancyModeOn;
-        if (occupancyModeOn)
-        {
-            if (!string.IsNullOrWhiteSpace(spacesJsonCache))
-                await JS.InvokeVoidAsync("parkingCanvas.setOccupancy", spacesJsonCache);
-            await JS.InvokeVoidAsync("parkingCanvas.enableOccupancyMode");
-        }
-        else
-            await JS.InvokeVoidAsync("parkingCanvas.disableOccupancyMode");
-    }
+        var prev = viewMode;
+        viewMode = mode;
 
-    private async Task ToggleDraw()
-    {
-        isDrawing = !isDrawing;
-        if (isDrawing)
+        switch (mode)
         {
-            occupancyModeOn = false;
-            await JS.InvokeVoidAsync("parkingCanvas.disableOccupancyMode");
-            if (!hasSpacesLoadedForEditing && !string.IsNullOrWhiteSpace(spacesJsonCache))
-            {
-                await JS.InvokeVoidAsync("parkingCanvas.loadSpaces", spacesJsonCache);
-                hasSpacesLoadedForEditing = true;
-            }
-            await JS.InvokeVoidAsync("parkingCanvas.enableDraw", "parkingImage");
+            case "live":
+                if (prev == "draw")
+                    await JS.InvokeVoidAsync("parkingCanvas.disableDraw");
+                await JS.InvokeVoidAsync("parkingCanvas.disableOccupancyMode");
+                break;
+
+            case "occupancy":
+                if (prev == "draw")
+                    await JS.InvokeVoidAsync("parkingCanvas.disableDraw");
+                if (!string.IsNullOrWhiteSpace(spacesJsonCache))
+                    await JS.InvokeVoidAsync("parkingCanvas.setOccupancy", spacesJsonCache);
+                await JS.InvokeVoidAsync("parkingCanvas.enableOccupancyMode");
+                break;
+
+            case "draw":
+                await JS.InvokeVoidAsync("parkingCanvas.disableOccupancyMode");
+                if (!hasSpacesLoadedForEditing && !string.IsNullOrWhiteSpace(spacesJsonCache))
+                {
+                    await JS.InvokeVoidAsync("parkingCanvas.loadSpaces", spacesJsonCache);
+                    hasSpacesLoadedForEditing = true;
+                }
+                await JS.InvokeVoidAsync("parkingCanvas.enableDraw", "parkingImage");
+                break;
         }
-        else
-            await JS.InvokeVoidAsync("parkingCanvas.disableDraw");
     }
 
     private async Task UndoLast()
