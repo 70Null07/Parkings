@@ -76,7 +76,29 @@
 
             @if (isOwner)
             {
-                <!-- Владелец: режим разметки -->
+                <div class="pk-card">
+                    <div class="pk-card-header">
+                        <h2 class="pk-card-title">Режим отображения</h2>
+                    </div>
+                    <div class="pk-card-body">
+                        <button class="pk-btn @(occupancyModeOn ? "pk-btn-emphasized" : "pk-btn-default")"
+                                @onclick="ToggleOccupancyMode"
+                                disabled="@isDrawing">
+                            @(occupancyModeOn ? "🟢 Подсветка включена" : "➕ Показать полигоны")
+                        </button>
+                        @if (occupancyModeOn)
+                        {
+                            <div class="pk-info-strip" style="margin-top:0.5rem">
+                                <span></span>
+                                <div>
+                                    <span style="color:#22aa22">■</span> Свободно &nbsp;
+                                    <span style="color:#cc2222">■</span> Занято
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
                 <div class="pk-card">
                     <div class="pk-card-header">
                         <h2 class="pk-card-title">Разметка</h2>
@@ -84,7 +106,7 @@
                     <div class="pk-card-body">
                         <button class="pk-btn @(isDrawing ? "pk-btn-attention" : "pk-btn-emphasized")"
                                 @onclick="ToggleDraw">
-                            @(isDrawing ? "⏹ Завершить разметку" : "✏ Начать разметку")
+                            @(isDrawing ? "⏹ Завершить редактирование" : "✏ Изменить разметку")
                         </button>
                         <button class="pk-btn pk-btn-positive"
                                 @onclick="SaveSpaces"
@@ -253,6 +275,8 @@
     private bool isSaving = false;
     private bool isOwner = false;
     private bool occupancyModeOn = false;
+    private string spacesJsonCache = "[]";
+    private bool hasSpacesLoadedForEditing = false;
     private int spaceCount = 0;
     private string snapshotUrl = "";
     private string saveMessage = "";
@@ -330,19 +354,22 @@
             if (resp.IsSuccessStatusCode)
             {
                 var json = await resp.Content.ReadAsStringAsync();
-                // Передаём в JS: загружает полигоны + статус занятости
-                await JS.InvokeVoidAsync("parkingCanvas.setOccupancy", json);
-                // Для владельца — также загружаем как обычную разметку
-                if (isOwner)
-                    await JS.InvokeVoidAsync("parkingCanvas.loadSpaces", json);
-                spaceCount = await JS.InvokeAsync<int>("parkingCanvas.getSpaceCount");
+                spacesJsonCache = json;
 
-                // Не-владелец сразу включает режим подсветки
-                if (!isOwner && spaceCount > 0)
+                // Для владельца не рисуем ничего по умолчанию, только считаем места
+                if (isOwner)
                 {
-                    occupancyModeOn = true;
-                    await JS.InvokeVoidAsync("parkingCanvas.enableOccupancyMode");
+                    var loaded = JsonSerializer.Deserialize<List<JsSpace>>(json,
+                        new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
+                    spaceCount = loaded.Count;
+                    occupancyModeOn = false;
                 }
+                else
+                {
+                    await JS.InvokeVoidAsync("parkingCanvas.setOccupancy", json);
+                    spaceCount = await JS.InvokeAsync<int>("parkingCanvas.getSpaceCount");
+                }
+
                 StateHasChanged();
             }
         }
@@ -353,7 +380,11 @@
     {
         occupancyModeOn = !occupancyModeOn;
         if (occupancyModeOn)
+        {
+            if (!string.IsNullOrWhiteSpace(spacesJsonCache))
+                await JS.InvokeVoidAsync("parkingCanvas.setOccupancy", spacesJsonCache);
             await JS.InvokeVoidAsync("parkingCanvas.enableOccupancyMode");
+        }
         else
             await JS.InvokeVoidAsync("parkingCanvas.disableOccupancyMode");
     }
@@ -362,7 +393,16 @@
     {
         isDrawing = !isDrawing;
         if (isDrawing)
+        {
+            occupancyModeOn = false;
+            await JS.InvokeVoidAsync("parkingCanvas.disableOccupancyMode");
+            if (!hasSpacesLoadedForEditing && !string.IsNullOrWhiteSpace(spacesJsonCache))
+            {
+                await JS.InvokeVoidAsync("parkingCanvas.loadSpaces", spacesJsonCache);
+                hasSpacesLoadedForEditing = true;
+            }
             await JS.InvokeVoidAsync("parkingCanvas.enableDraw", "parkingImage");
+        }
         else
             await JS.InvokeVoidAsync("parkingCanvas.disableDraw");
     }
