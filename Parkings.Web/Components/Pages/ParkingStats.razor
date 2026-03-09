@@ -5,6 +5,16 @@
 <div class="pk-card pk-stats-card">
     <div class="pk-card-header">
         <h2 class="pk-card-title">📊 История загруженности</h2>
+        <div style="display:flex; gap:0.5rem;">
+            <button class="pk-btn @(activeView == "chart" ? "pk-btn-emphasized" : "pk-btn-default") pk-btn-sm"
+                    @onclick='() => SwitchView("chart")'>
+                📊 График
+            </button>
+            <button class="pk-btn @(activeView == "table" ? "pk-btn-emphasized" : "pk-btn-default") pk-btn-sm"
+                    @onclick='() => SwitchView("table")'>
+                📋 Таблица
+            </button>
+        </div>
     </div>
 
     <div class="pk-card-body">
@@ -13,13 +23,9 @@
         <div class="pk-stats-filters">
             <div class="pk-stats-filter-group">
                 <label class="pk-label">С</label>
-                <input type="date" class="pk-input-sm"
-                       @bind="filterFrom" @bind:event="oninput" />
-            </div>
-            <div class="pk-stats-filter-group">
+                <input type="date" class="pk-input-sm" @bind="filterFrom" @bind:event="oninput" />
                 <label class="pk-label">По</label>
-                <input type="date" class="pk-input-sm"
-                       @bind="filterTo" @bind:event="oninput" />
+                <input type="date" class="pk-input-sm" @bind="filterTo" @bind:event="oninput" />
             </div>
             <div class="pk-stats-filter-group">
                 <label class="pk-label">Группировка</label>
@@ -35,6 +41,17 @@
             <button class="pk-btn pk-btn-default pk-btn-sm" @onclick="ResetFilters">
                 ✕ Сбросить
             </button>
+            @if (activeView == "chart")
+            {
+                <button class="pk-btn pk-btn-sm @(chartType == "bar" ? "pk-btn-emphasized" : "pk-btn-default")"
+                        @onclick='() => SwitchChart("bar")'>
+                    ▦ Столбцы
+                </button>
+                <button class="pk-btn pk-btn-sm @(chartType == "line" ? "pk-btn-emphasized" : "pk-btn-default")"
+                        @onclick='() => SwitchChart("line")'>
+                    ∿ Линия
+                </button>
+            }
         </div>
 
         @if (isLoading)
@@ -55,9 +72,7 @@
                 </div>
                 <div class="pk-stat-chip">
                     <span class="pk-stat-chip-label">Ср. занято</span>
-                    <span class="pk-stat-chip-val busy">
-                        @history.Average(h => h.BusySpots).ToString("F1")
-                    </span>
+                    <span class="pk-stat-chip-val busy">@history.Average(h => h.BusySpots).ToString("F1")</span>
                 </div>
                 <div class="pk-stat-chip">
                     <span class="pk-stat-chip-label">Макс. занято</span>
@@ -65,54 +80,59 @@
                 </div>
                 <div class="pk-stat-chip">
                     <span class="pk-stat-chip-label">Ср. свободно</span>
-                    <span class="pk-stat-chip-val free">
-                        @history.Average(h => h.FreeSpots).ToString("F1")
-                    </span>
+                    <span class="pk-stat-chip-val free">@history.Average(h => h.FreeSpots).ToString("F1")</span>
                 </div>
             </div>
 
-            <!-- Таблица -->
-            <div class="pk-stats-table-wrap">
-                <table class="pk-stats-table">
-                    <thead>
-                        <tr>
-                            <th @onclick='() => SetSort("date")' class="pk-th-sortable">
-                                Дата и время @SortIcon("date")
-                            </th>
-                            <th @onclick='() => SetSort("busy")' class="pk-th-sortable">
-                                Занято @SortIcon("busy")
-                            </th>
-                            <th @onclick='() => SetSort("free")' class="pk-th-sortable">
-                                Свободно @SortIcon("free")
-                            </th>
-                            <th>Всего</th>
-                            <th>Загруженность</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var row in SortedHistory)
-                        {
-                            var pct = row.TotalSpots > 0
-                            ? (int)(row.BusySpots * 100.0 / row.TotalSpots)
-                            : 0;
+            @if (activeView == "chart")
+            {
+                <div style="position:relative; height:280px; margin-top:1rem;">
+                    <canvas id="occupancyChart"></canvas>
+                </div>
+            }
+            else
+            {
+                <div class="pk-stats-table-wrap">
+                    <table class="pk-stats-table">
+                        <thead>
                             <tr>
-                                <td>@row.RecordedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
-                                <td><span class="pk-stat-busy">@row.BusySpots</span></td>
-                                <td><span class="pk-stat-free">@row.FreeSpots</span></td>
-                                <td>@row.TotalSpots</td>
-                                <td>
-                                    <div class="pk-progress">
-                                        <div class="pk-progress-bar"
-                                             style="width:@pct%; background:@(pct > 80 ? "#BB0000" : pct > 50 ? "#E9730C" : "#107E3E")">
-                                        </div>
-                                        <span class="pk-progress-label">@pct%</span>
-                                    </div>
-                                </td>
+                                <th @onclick='() => SetSort("date")' class="pk-th-sortable">
+                                    Дата и время @SortIcon("date")
+                                </th>
+                                <th @onclick='() => SetSort("busy")' class="pk-th-sortable">
+                                    Занято @SortIcon("busy")
+                                </th>
+                                <th @onclick='() => SetSort("free")' class="pk-th-sortable">
+                                    Свободно @SortIcon("free")
+                                </th>
+                                <th>Всего</th>
+                                <th>Загруженность</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in SortedHistory)
+                            {
+                                var pct = row.TotalSpots > 0
+                                ? (int)(row.BusySpots * 100.0 / row.TotalSpots) : 0;
+                                <tr>
+                                    <td>@row.RecordedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                    <td><span class="pk-stat-busy">@row.BusySpots</span></td>
+                                    <td><span class="pk-stat-free">@row.FreeSpots</span></td>
+                                    <td>@row.TotalSpots</td>
+                                    <td>
+                                        <div class="pk-progress">
+                                            <div class="pk-progress-bar"
+                                                 style="width:@pct%; background:@(pct > 80 ? "#BB0000" : pct > 50 ? "#E9730C" : "#107E3E")">
+                                            </div>
+                                            <span class="pk-progress-label">@pct%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
         }
     </div>
 </div>
@@ -130,6 +150,8 @@
 
     private List<HistoryRow> history = new();
     private bool isLoading = false;
+    private string activeView = "chart";
+    private string chartType = "bar";
 
     private DateTime filterFrom = DateTime.Today.AddDays(-7);
     private DateTime filterTo = DateTime.Today.AddDays(1);
@@ -140,15 +162,12 @@
 
     private IEnumerable<HistoryRow> SortedHistory => sortField switch
     {
-        "busy" => sortAsc
-            ? history.OrderBy(h => h.BusySpots)
-            : history.OrderByDescending(h => h.BusySpots),
-        "free" => sortAsc
-            ? history.OrderBy(h => h.FreeSpots)
-            : history.OrderByDescending(h => h.FreeSpots),
-        _ => sortAsc
-            ? history.OrderBy(h => h.RecordedAt)
-            : history.OrderByDescending(h => h.RecordedAt)
+        "busy" => sortAsc ? history.OrderBy(h => h.BusySpots)
+                          : history.OrderByDescending(h => h.BusySpots),
+        "free" => sortAsc ? history.OrderBy(h => h.FreeSpots)
+                          : history.OrderByDescending(h => h.FreeSpots),
+        _ => sortAsc ? history.OrderBy(h => h.RecordedAt)
+                          : history.OrderByDescending(h => h.RecordedAt)
     };
 
     private string SortIcon(string field) =>
@@ -168,6 +187,7 @@
     private async Task LoadHistory()
     {
         isLoading = true;
+        StateHasChanged();
         try
         {
             var client = ClientFactory.CreateClient("api");
@@ -178,11 +198,19 @@
 
             var resp = await client.GetAsync(url);
             if (resp.IsSuccessStatusCode)
-                history = await resp.Content
-                    .ReadFromJsonAsync<List<HistoryRow>>() ?? new();
+            {
+                history = await resp.Content.ReadFromJsonAsync<List<HistoryRow>>() ?? new();
+                history = history.OrderBy(h => h.RecordedAt).ToList();
+            }
         }
         catch { }
-        finally { isLoading = false; }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+            if (activeView == "chart" && history.Count > 0)
+                await RenderChart();
+        }
     }
 
     private async Task ResetFilters()
@@ -191,5 +219,42 @@
         filterTo = DateTime.Today.AddDays(1);
         groupBy = "hour";
         await LoadHistory();
+    }
+
+    private async Task SwitchView(string view)
+    {
+        activeView = view;
+        StateHasChanged();
+        if (view == "chart" && history.Count > 0)
+            await RenderChart();
+    }
+
+    private async Task SwitchChart(string type)
+    {
+        chartType = type;
+        StateHasChanged();
+        if (history.Count > 0)
+            await RenderChart();
+    }
+
+    private async Task RenderChart()
+    {
+        await Task.Delay(50);
+        var labels = history
+            .Select(h => h.RecordedAt.ToLocalTime().ToString(
+                groupBy == "day" ? "dd.MM" : "dd.MM HH:mm"))
+            .ToArray();
+        var busy = history.Select(h => h.BusySpots).ToArray();
+        var free = history.Select(h => h.FreeSpots).ToArray();
+        try
+        {
+            await JS.InvokeVoidAsync("occupancyChart.render",
+        "occupancyChart", labels, busy, free, chartType);
+        }
+        catch (Exception)
+        {
+
+        }
+
     }
 }

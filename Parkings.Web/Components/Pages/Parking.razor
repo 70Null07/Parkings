@@ -155,87 +155,17 @@
                     </div>
                 </div>
             }
-
-            <!-- История загруженности — видна всем -->
-            <div class="pk-card">
-                <div class="pk-card-header">
-                    <h2 class="pk-card-title">История загруженности</h2>
-                    <div style="display:flex; gap:0.5rem;">
-                        <button class="pk-btn @(historyView == "chart" ? "pk-btn-emphasized" : "pk-btn-default")"
-                                @onclick='() => SwitchView("chart")'>
-                            📊 График
-                        </button>
-                        <button class="pk-btn @(historyView == "table" ? "pk-btn-emphasized" : "pk-btn-default")"
-                                @onclick='() => SwitchView("table")'>
-                            📋 Таблица
-                        </button>
-                    </div>
-                </div>
-                <div class="pk-card-body">
-                    @if (historyLoading)
-                    {
-                        <div style="color:var(--sapContent_LabelColor)">⏳ Загрузка...</div>
-                    }
-                    else if (history.Count == 0)
-                    {
-                        <div style="color:var(--sapContent_LabelColor)">Нет данных</div>
-                    }
-                    else if (historyView == "chart")
-                    {
-                        <div style="position:relative; height:220px;">
-                            <canvas id="occupancyChart"></canvas>
-                        </div>
-                    }
-                    else
-                    {
-                        <div style="overflow-x:auto;">
-                            <table class="pk-history-table">
-                                <thead>
-                                    <tr>
-                                        <th>Дата и время</th>
-                                        <th>Занято</th>
-                                        <th>Свободно</th>
-                                        <th>Всего</th>
-                                        <th>Загруженность</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var h in history)
-                                    {
-                                        var pct = h.TotalSpots > 0
-                                        ? (int)Math.Round((double)h.BusySpots / h.TotalSpots * 100) : 0;
-                                        <tr>
-                                            <td>@h.RecordedAt.ToLocalTime().ToString("dd.MM HH:mm")</td>
-                                            <td style="color:#BB0000;font-weight:600">@h.BusySpots</td>
-                                            <td style="color:#107E3E;font-weight:600">@h.FreeSpots</td>
-                                            <td>@h.TotalSpots</td>
-                                            <td>
-                                                <div style="display:flex;align-items:center;gap:0.5rem;">
-                                                    <div style="flex:1;background:#e0e0e0;border-radius:4px;height:8px;">
-                                                        <div style="width:@(pct)%;background:#BB0000;height:8px;border-radius:4px;"></div>
-                                                    </div>
-                                                    <span style="font-size:0.75rem;min-width:2rem">@(pct)%</span>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    }
-                </div>
-            </div>
         </div>
     }
 </div>
 
 @* Внизу страницы, после основного контента *@
-@* @if (parking != null)
+ @if (parking != null)
 {
     <div style="grid-column: 1 / -1; margin-top: 1rem;">
         <ParkingStats ParkingId="@Id" />
     </div>
-} *@
+} 
 
 @code {
     private List<OccupancyLogDto> history = new();

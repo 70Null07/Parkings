@@ -3,7 +3,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
-<body style="background-image:url(/img/background.jpg);justify-content:center;align-items:center;">
+@* <body style="background-image:url(/img/background.jpg);justify-content:center;align-items:center;"> *@
     @if (!isLoggedIn)
     {
         @if (ProfileMode == "Login")
@@ -48,8 +48,10 @@
     @if(isLoggedIn)
     {
         <h1>Мой профиль</h1>
+
+        <MyParkings />
     }
-</body>
+@* </body> *@
 
 @code {
     private string token = string.Empty;
@@ -167,32 +169,6 @@
         if (response.IsSuccessStatusCode)
         {
             await Login();
-
-            // var loginReq = new LoginRequest
-            // {
-            //     Identifier = loginName,
-            //     Password = password
-            // };
-
-            // var loginResponse = await client.PostAsJsonAsync("http://apiservice/api/auth/login", loginReq);
-            // if (loginResponse.IsSuccessStatusCode)
-            // {
-            //     var result = await loginResponse.Content.ReadFromJsonAsync<LoginResult>();
-            //     try
-            //     {
-            //         await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
-            //         await JS.InvokeVoidAsync("localStorage.setItem", "username", result.User.DisplayName);
-            //         await JS.InvokeVoidAsync("localStorage.setItem", "userId", result.User.UserId.ToString());
-            //     }
-            //     catch (Exception) { }
-
-            //     currentUserName = result.User.DisplayName;
-            //     isLoggedIn = true;
-
-            //     showAuthModal = false;
-
-            //     Nav.NavigateTo(Nav.Uri, forceLoad: true);
-            // }
         }
         else
         {
@@ -216,6 +192,5 @@
                 ProfileMode = "Login";
                 break;
         }
-          
     }
 }
