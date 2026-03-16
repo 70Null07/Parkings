@@ -83,7 +83,7 @@ namespace Parkings.ApiService.ApiDTOs
 
     public class SaveSpaceItem
     {
-        public int Id { get; set; }  // id из JS (P1, P2...) — используем как SpaceNumber
+        public int Id { get; set; }  // id из JS (P1, P2...)
         public List<SpacePointDto> Points { get; set; } = new();
     }
 
@@ -112,7 +112,7 @@ namespace Parkings.ApiService.ApiDTOs
         public List<ParkingSpaceDto> Spaces { get; set; } = new();
     }
 
-    // Для публичной карты — без авторизации
+    // Для публичной карты
     public class PublicParkingDto
     {
         public int Id { get; set; }

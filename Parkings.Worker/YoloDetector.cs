@@ -85,6 +85,40 @@ namespace Parkings.Worker
             return boxes;
         }
 
+        public List<BoundingBox> DetectFromMjpeg(string url)
+        {
+            using var capture = new VideoCapture(url);
+            if (!capture.IsOpened()) return new();
+
+            using var frame = new Mat();
+            if (!capture.Read(frame) || frame.Empty()) return new();
+
+            capture.Release();
+            return DetectFromMat(frame);
+        }
+
+        public (List<BoundingBox> boxes, int width, int height) DetectWithSize(byte[] imageBytes)
+        {
+            using var mat = Cv2.ImDecode(imageBytes, ImreadModes.Color);
+            return (DetectFromMat(mat), mat.Width, mat.Height);
+        }
+
+        public (List<BoundingBox> boxes, int width, int height) DetectFromMjpegWithSize(string url)
+        {
+            using var capture = new VideoCapture(url);
+            if (!capture.IsOpened()) return (new(), 640, 480);
+
+            using var frame = new Mat();
+            // Пропускаем первые кадры — бывают пустые
+            for (int i = 0; i < 3; i++)
+                capture.Read(frame);
+
+            if (frame.Empty()) return (new(), 640, 480);
+
+            int w = frame.Width, h = frame.Height;
+            return (DetectFromMat(frame), w, h);
+        }
+
         public void Dispose() => _session.Dispose();
     }
 }

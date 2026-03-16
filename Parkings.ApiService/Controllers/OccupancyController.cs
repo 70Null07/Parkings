@@ -49,7 +49,7 @@ namespace Parkings.ApiService.Controllers
             parking.LastCheckedAt = DateTime.UtcNow;
 
             // Обновляем IsOccupied для каждого места
-            if (req.SpaceStatuses.Any())
+            if (req.SpaceStatuses.Count != 0)
             {
                 var spaceIds = req.SpaceStatuses.Select(s => s.SpaceId).ToList();
                 var spaces = await _db.ParkingSpaces
@@ -75,27 +75,6 @@ namespace Parkings.ApiService.Controllers
             await _db.SaveChangesAsync();
             return Ok(new { updated = true });
         }
-
-        // GET history — последние 100 записей (для будущих графиков)
-        //[HttpGet("history")]
-        //[Authorize]
-        //public async Task<IActionResult> GetHistory(int parkingId)
-        //{
-        //    var logs = await _db.OccupancyLogs
-        //        .Where(l => l.ParkingId == parkingId)
-        //        .OrderByDescending(l => l.RecordedAt)
-        //        .Take(100)
-        //        .Select(l => new
-        //        {
-        //            l.FreeSpots,
-        //            l.BusySpots,
-        //            l.TotalSpots,
-        //            l.RecordedAt
-        //        })
-        //        .ToListAsync();
-
-        //    return Ok(logs);
-        //}
 
         // GET api/parkings/5/occupancy/history?from=2024-01-01&to=2024-01-31&group=hour
         [HttpGet("history")]

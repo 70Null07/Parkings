@@ -14,6 +14,9 @@ window.parkingCanvas = (() => {
     let occupancyMode = false;
     let occupancyData = [];
 
+    let hlsInstance = null;
+    let videoEl = null;
+
     function refreshImage() {
         if (!imgEl || isDrawing) return;
         // Сохраняем url= параметр, меняем только _t=
@@ -218,9 +221,33 @@ window.parkingCanvas = (() => {
 
     return {
         init(canvasId, ref) {
+            // Полный сброс состояния перед инициализацией новой парковки
+            stopRefresh();
+            if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+
+            spaces = [];
+            currentPoints = [];
+            occupancyData = [];
+            nextId = 1;
+            hoveredIdx = -1;
+            isDrawing = false;
+            occupancyMode = false;
+            imgEl = null;
+            videoEl = null;
+            refreshInterval = null;
+
             canvas = document.getElementById(canvasId);
             ctx = canvas.getContext('2d');
             dotnetRef = ref;
+
+            // Очищаем canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Переподписываемся (убираем старые листенеры если были)
+            canvas.removeEventListener('click', onClick);
+            canvas.removeEventListener('mousemove', onMouseMove);
+            canvas.removeEventListener('contextmenu', onRightClick);
+
             canvas.addEventListener('click', onClick);
             canvas.addEventListener('mousemove', onMouseMove);
             canvas.addEventListener('contextmenu', onRightClick);

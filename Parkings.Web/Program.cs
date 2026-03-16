@@ -1,8 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
 using Parkings.Web;
 using Parkings.Web.Components;
+using System.Security.Cryptography.X509Certificates;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ConfigureHttpsDefaults(o =>
+    {
+        o.ServerCertificate = new X509Certificate2(
+            "C:\\tmp\\cert\\certificate.pfx",
+            "SmartParkings");
+    });
+});
 
 builder.AddServiceDefaults();
 
@@ -23,23 +33,6 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 app.UseOutputCache();
 app.MapStaticAssets();
-
-//// Прокси-эндпоинт для камеры (обходит CORS)
-//app.MapGet("/api/camera/snapshot", async (IHttpClientFactory factory, [FromQuery] string url) =>
-//{
-//    try
-//    {
-//        var client = factory.CreateClient("camera");
-//        var bytes = await client.GetByteArrayAsync(url);
-//        return Results.File(bytes, "image/jpeg");
-//    }
-//    catch
-//    {
-//        return Results.NotFound();
-//    }
-//})
-//.AllowAnonymous()
-//.CacheOutput(p => p.Expire(TimeSpan.FromSeconds(1))); // свежий кадр каждую секунду
 
 app.MapGet("/api/camera/snapshot", async (HttpContext context,
     [FromQuery] string url,

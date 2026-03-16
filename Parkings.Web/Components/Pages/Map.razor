@@ -5,49 +5,92 @@
 
 <HeadContent>
     <link rel="stylesheet" href="css/myparkings.css" />
+    <link rel="stylesheet" href="css/map.css" />
 </HeadContent>
 
-<div style="padding: 1rem;">
+<div class="map-page">
 
-    <!-- Поиск над картой -->
-    <div style="margin-bottom:0.75rem; max-width:400px;">
-        <ParkingSearch FocusMapMode="true" OnParkingSelected="FocusOnParking" />
+    <div class="map-toolbar">
+        <div style="flex:1; max-width:400px;">
+            <ParkingSearch FocusMapMode="true" OnParkingSelected="FocusOnParking" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(authToken))
+        {
+            <div style="display:flex; gap:0.5rem;">
+                <button class="mp-btn @(mapFilter == "all" ? "mp-btn-emphasized" : "mp-btn-default")"
+                        @onclick='() => SetFilter("all")'>
+                    🌍 Все
+                </button>
+                <button class="mp-btn @(mapFilter == "my" ? "mp-btn-emphasized" : "mp-btn-default")"
+                        @onclick='() => SetFilter("my")'>
+                    🅿 Мои
+                </button>
+                <button class="mp-btn @(mapFilter == "fav" ? "mp-btn-emphasized" : "mp-btn-default")"
+                        @onclick='() => SetFilter("fav")'>
+                    ⭐ Избранные
+                </button>
+            </div>
+        }
     </div>
 
-    <div id="mainMap" style="width:100%; height:calc(100vh - 160px); border-radius:0.5rem; border:1px solid #d9d9d9;"></div>
+    <div class="map-body">
+        <div id="mainMap" class="map-canvas"></div>
+
+        @if (!string.IsNullOrEmpty(authToken))
+        {
+            <div class="map-favorites">
+                <div class="map-fav-header">
+                    <span>⭐ Избранное</span>
+                    <span class="mp-count">(@favorites.Count)</span>
+                </div>
+
+                @if (favLoading)
+                {
+                    <div class="map-fav-empty">⏳</div>
+                }
+                else if (favorites.Count == 0)
+                {
+                    <div class="map-fav-empty">
+                        Нажмите ⭐ в балуне<br />чтобы добавить
+                    </div>
+                }
+                else
+                {
+                    @foreach (var f in favorites)
+                    {
+                        var fav = f;
+                        <div class="map-fav-item" @onclick="() => FocusOnFav(fav)">
+                            <div class="map-fav-name">@f.Name</div>
+                            <div class="map-fav-address">@f.Address</div>
+                            <div class="map-fav-stats">
+                                <span style="color:#107E3E">🟢 @f.FreeSpots</span>
+                                <span style="color:#BB0000">🔴 @f.BusySpots</span>
+                                <button class="map-fav-remove"
+                                        @onclick:stopPropagation="true"
+                                        @onclick="() => RemoveFavorite(fav.Id)">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        }
+    </div>
 </div>
 
 @code {
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
+    private string mapFilter = "all";
+    private string authToken = "";
+    private List<ParkingDto> allParkings = new();
+    private List<ParkingDto> myParkings = new();
+    private List<ParkingDto> favorites = new();
+    private HashSet<int> favoriteIds = new();
+    private bool favLoading = false;
+    private DotNetObjectReference<Map>? selfRef;
 
-        List<PublicParkingDto> parkings = new();
-        try
-        {
-            var client = ClientFactory.CreateClient("api");
-            var resp = await client.GetAsync("http://apiservice/api/parkings/public");
-            if (resp.IsSuccessStatusCode)
-                parkings = await resp.Content.ReadFromJsonAsync<List<PublicParkingDto>>() ?? new();
-        }
-        catch { }
-
-        await JS.InvokeVoidAsync("parkingMap.init", "mainMap",
-            System.Text.Json.JsonSerializer.Serialize(parkings,
-                new System.Text.Json.JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
-                }));
-    }
-
-    private async Task FocusOnParking(ParkingSearch.ParkingResult p)
-    {
-        if (p.Latitude.HasValue && p.Longitude.HasValue)
-            await JS.InvokeVoidAsync("parkingMap.focusOn",
-                p.Latitude.Value, p.Longitude.Value, p.Id);
-    }
-
-    class PublicParkingDto
+    class ParkingDto
     {
         public int Id { get; set; }
         public string Name { get; set; } = "";
@@ -56,5 +99,148 @@
         public double? Longitude { get; set; }
         public int FreeSpots { get; set; }
         public int BusySpots { get; set; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try { authToken = await JS.InvokeAsync<string>("localStorage.getItem", "authToken") ?? ""; }
+        catch { }
+
+        var client = ClientFactory.CreateClient("api");
+
+        try
+        {
+            var resp = await client.GetAsync("http://apiservice/api/parkings/public");
+            if (resp.IsSuccessStatusCode)
+                allParkings = await resp.Content.ReadFromJsonAsync<List<ParkingDto>>() ?? new();
+        }
+        catch { }
+
+        if (!string.IsNullOrEmpty(authToken))
+        {
+            await LoadMyParkings(client);
+            await LoadFavorites(client);
+        }
+
+        // ← Сначала рендерим панель избранного чтобы карта знала свою ширину
+        StateHasChanged();
+        await Task.Delay(100);
+
+        // ← Потом инициализируем карту — она уже знает правильный размер контейнера
+        selfRef = DotNetObjectReference.Create(this);
+        await InitMap(allParkings);
+    }
+
+    private async Task LoadMyParkings(HttpClient client)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, "http://apiservice/api/parkings");
+            req.Headers.Authorization = new("Bearer", authToken);
+            var resp = await client.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+                myParkings = await resp.Content.ReadFromJsonAsync<List<ParkingDto>>() ?? new();
+        }
+        catch { }
+    }
+
+    private async Task LoadFavorites(HttpClient client)
+    {
+        favLoading = true;
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, "http://apiservice/api/favorites");
+            req.Headers.Authorization = new("Bearer", authToken);
+            var resp = await client.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+            {
+                favorites = await resp.Content.ReadFromJsonAsync<List<ParkingDto>>() ?? new();
+                favoriteIds = favorites.Select(f => f.Id).ToHashSet();
+            }
+        }
+        catch { }
+        finally { favLoading = false; }
+    }
+
+    private async Task InitMap(List<ParkingDto> parkings)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(parkings,
+            new System.Text.Json.JsonSerializerOptions
+            { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+        var favJson = System.Text.Json.JsonSerializer.Serialize(favoriteIds.ToList());
+        await JS.InvokeVoidAsync("parkingMap.init", "mainMap", json, selfRef, favJson);
+    }
+
+    private async Task SetFilter(string filter)
+    {
+        mapFilter = filter;
+        var parkings = filter switch
+        {
+            "my" => myParkings,
+            "fav" => favorites,
+            _ => allParkings
+        };
+        await InitMap(parkings);
+    }
+
+    private async Task FocusOnParking(ParkingSearch.ParkingResult p)
+    {
+        if (p.Latitude.HasValue && p.Longitude.HasValue)
+            await JS.InvokeVoidAsync("parkingMap.focusOn", p.Latitude.Value, p.Longitude.Value, p.Id);
+    }
+
+    private async Task FocusOnFav(ParkingDto p)
+    {
+        if (p.Latitude.HasValue && p.Longitude.HasValue)
+            await JS.InvokeVoidAsync("parkingMap.focusOn", p.Latitude.Value, p.Longitude.Value, p.Id);
+    }
+
+    private async Task RemoveFavorite(int parkingId)
+    {
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Delete,
+                "http://apiservice/api/favorites/" + parkingId);
+            req.Headers.Authorization = new("Bearer", authToken);
+            await client.SendAsync(req);
+            favorites.RemoveAll(f => f.Id == parkingId);
+            favoriteIds.Remove(parkingId);
+            await JS.InvokeVoidAsync("parkingMap.updateFavorites",
+                System.Text.Json.JsonSerializer.Serialize(favoriteIds.ToList()));
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    [JSInvokable]
+    public async Task ToggleFavoriteFromMap(int parkingId)
+    {
+        var client = ClientFactory.CreateClient("api");
+        if (favoriteIds.Contains(parkingId))
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Delete,
+                "http://apiservice/api/favorites/" + parkingId);
+            req.Headers.Authorization = new("Bearer", authToken);
+            await client.SendAsync(req);
+            favoriteIds.Remove(parkingId);
+            favorites.RemoveAll(f => f.Id == parkingId);
+        }
+        else
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                "http://apiservice/api/favorites/" + parkingId);
+            req.Headers.Authorization = new("Bearer", authToken);
+            await client.SendAsync(req);
+            var p = allParkings.FirstOrDefault(x => x.Id == parkingId)
+                 ?? myParkings.FirstOrDefault(x => x.Id == parkingId);
+            if (p != null) { favorites.Add(p); favoriteIds.Add(parkingId); }
+        }
+
+        await JS.InvokeVoidAsync("parkingMap.updateFavorites",
+            System.Text.Json.JsonSerializer.Serialize(favoriteIds.ToList()));
+        StateHasChanged();
     }
 }

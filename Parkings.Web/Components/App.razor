@@ -14,11 +14,16 @@
     <script src="https://api-maps.yandex.ru/2.1/?apikey=3cd756f6-394a-4ea1-96d3-13b8f3ee7b9f&lang=ru_RU"></script>
     <script src="/js/parkingCanvas.js"></script>
     <link rel="stylesheet" href="css/parking.css" />
+    <link rel="stylesheet" href="css/map.css" />
     <script src="/js/mapPicker.js"></script>
     <script src="/js/parkingMap.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <script src="/js/occupancyChart.js"></script>
     <link rel="stylesheet" href="css/parkingSearch.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <script src="/js/chat.js"></script>
+    <link rel="stylesheet" href="css/chat.css" />
+
 </head>
 
 <body style="background-image:url(/img/background.jpg);">
@@ -42,6 +47,7 @@
     <main>
         <Routes @rendermode=RenderMode.InteractiveServer />
     </main>
+    <Parkings.Web.Components.Pages.ChatWidget />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 
     <footer style="bottom:0;">

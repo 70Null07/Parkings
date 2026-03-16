@@ -8,6 +8,33 @@ namespace Parkings.ApiService
         public DbSet<Parking> Parkings { get; set; }
         public DbSet<ParkingSpace> ParkingSpaces { get; set; }
         public DbSet<OccupancyLog> OccupancyLogs { get; set; }
+        public DbSet<Favorite> Favorites { get; set; }
+        public DbSet<Message> Messages { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Favorite>()
+                .HasOne(f => f.User)
+                .WithMany()
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Favorite>()
+                .HasOne(f => f.Parking)
+                .WithMany()
+                .HasForeignKey(f => f.ParkingId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.Sender).WithMany()
+                .HasForeignKey(m => m.SenderId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Message>()
+                .HasOne(m => m.Receiver).WithMany()
+                .HasForeignKey(m => m.ReceiverId)
+                .OnDelete(DeleteBehavior.NoAction);
+        }
     }
 
     public class User
@@ -56,6 +83,30 @@ namespace Parkings.ApiService
         public int BusySpots { get; set; }
         public int TotalSpots { get; set; }
         public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
+        public Parking Parking { get; set; } = null!;
+    }
+
+    public class Favorite
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public int ParkingId { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public User User { get; set; } = null!;
+        public Parking Parking { get; set; } = null!;
+    }
+
+    public class Message
+    {
+        public int Id { get; set; }
+        public int SenderId { get; set; }
+        public int ReceiverId { get; set; }
+        public int ParkingId { get; set; }
+        public string Text { get; set; } = null!;
+        public bool IsRead { get; set; } = false;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public User Sender { get; set; } = null!;
+        public User Receiver { get; set; } = null!;
         public Parking Parking { get; set; } = null!;
     }
 }

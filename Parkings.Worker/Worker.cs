@@ -9,6 +9,7 @@ namespace Parkings.Worker
     public class ParkingWorker(
         IHttpClientFactory httpFactory,
         IConfiguration config,
+        YoloDetector _detector,           
         ILogger<ParkingWorker> logger) : BackgroundService
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -64,23 +65,29 @@ namespace Parkings.Worker
 
             try
             {
-                // 1. Скачиваем кадр
-                using var imgClient = httpFactory.CreateClient("camera");
-                var imageBytes = await imgClient.GetByteArrayAsync(parking.StreamUrl, ct);
+                List<BoundingBox> carBoxes;
+                int frameWidth = 640, frameHeight = 480; // дефолт = размер canvas
 
-                // 2. Детекция через YOLO
-                var detector = new YoloDetector(config["Yolo:ModelPath"]!);
-                var carBoxes = detector.Detect(imageBytes);
+                if (parking.StreamType == "MJPEG")
+                {
+                    (carBoxes, frameWidth, frameHeight) = _detector.DetectFromMjpegWithSize(parking.StreamUrl);
+                }
+                else
+                {
+                    using var imgClient = httpFactory.CreateClient("camera");
+                    var imageBytes = await imgClient.GetByteArrayAsync(parking.StreamUrl, ct);
+                    (carBoxes, frameWidth, frameHeight) = _detector.DetectWithSize(imageBytes);
+                }
 
-                logger.LogInformation("Парковка {Id}: найдено {Cars} машин", parking.Id, carBoxes.Count);
+                logger.LogInformation("Парковка {Id}: кадр {W}x{H}, найдено {Cars} машин",
+                    parking.Id, frameWidth, frameHeight, carBoxes.Count);
 
-                // 3. Сопоставляем bbox с полигонами
-                var (free, busy, statuses) = MatchCarsToSpaces(carBoxes, parking.Spaces);
+                var (free, busy, statuses) = MatchCarsToSpaces(
+                    carBoxes, parking.Spaces, frameWidth, frameHeight);
 
-                // 4. Отправляем результат в API
                 var apiClient = httpFactory.CreateClient("api");
                 using var req = new HttpRequestMessage(HttpMethod.Post,
-                    "http://apiservice/api/parkings/" + parking.Id + "/occupancy");
+                    "https+http://apiservice/api/parkings/" + parking.Id + "/occupancy");
                 req.Headers.Add("X-Worker-Key", workerKey);
                 req.Content = JsonContent.Create(new UpdateOccupancyRequest
                 {
@@ -98,6 +105,41 @@ namespace Parkings.Worker
             {
                 logger.LogError(ex, "Ошибка обработки парковки {Id}", parking.Id);
             }
+        }
+
+        private static (int free, int busy, List<SpaceOccupancyItem> statuses) MatchCarsToSpaces(
+            List<BoundingBox> cars, List<ParkingSpaceDto> spaces,
+            int frameWidth, int frameHeight)
+        {
+            // Canvas всегда 640x480 — масштабируем полигоны под реальный размер кадра
+            const float canvasW = 640f;
+            const float canvasH = 480f;
+            float scaleX = frameWidth / canvasW;
+            float scaleY = frameHeight / canvasH;
+
+            int busy = 0;
+            var statuses = new List<SpaceOccupancyItem>();
+
+            foreach (var space in spaces)
+            {
+                // Масштабируем точки полигона из canvas-координат в координаты кадра
+                var scaledPoints = space.Points.Select(p => new SpacePointDto
+                {
+                    X = p.X * scaleX,
+                    Y = p.Y * scaleY
+                }).ToList();
+
+                bool occupied = cars.Any(car =>
+                {
+                    var center = new PointF((car.X1 + car.X2) / 2f, (car.Y1 + car.Y2) / 2f);
+                    return IsPointInPolygon(center, scaledPoints);
+                });
+
+                if (occupied) busy++;
+                statuses.Add(new SpaceOccupancyItem { SpaceId = space.Id, IsOccupied = occupied });
+            }
+
+            return (spaces.Count - busy, busy, statuses);
         }
 
         private static (int free, int busy, List<SpaceOccupancyItem> statuses) MatchCarsToSpaces(

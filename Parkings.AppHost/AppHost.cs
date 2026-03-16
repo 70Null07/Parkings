@@ -1,3 +1,5 @@
+using System.Security.Cryptography.X509Certificates;
+
 var builder = DistributedApplication.CreateBuilder(args);
 
 var apiService = builder.AddProject<Projects.Parkings_ApiService>("apiservice")
@@ -12,7 +14,5 @@ builder.AddProject<Projects.Parkings_Web>("webfrontend")
 builder.AddProject<Projects.Parkings_Worker>("worker")
     .WithReference(apiService)
     .WaitFor(apiService);
-
-builder.AddProject<Projects.Parkings_Worker>("parkings-worker");
 
 builder.Build().Run();
