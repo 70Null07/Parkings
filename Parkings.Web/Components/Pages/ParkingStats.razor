@@ -20,27 +20,36 @@
     <div class="pk-card-body">
 
         <!-- Фильтры -->
+        <!-- Фильтры -->
         <div class="pk-stats-filters">
-            <div class="pk-stats-filter-group">
-                <label class="pk-label">С</label>
-                <input type="date" class="pk-input-sm" @bind="filterFrom" @bind:event="oninput" />
-                <label class="pk-label">По</label>
-                <input type="date" class="pk-input-sm" @bind="filterTo" @bind:event="oninput" />
-            </div>
-            <div class="pk-stats-filter-group">
-                <label class="pk-label">Группировка</label>
-                <select class="pk-input-sm" @bind="groupBy">
-                    <option value="raw">Все записи</option>
-                    <option value="hour">По часам</option>
-                    <option value="day">По дням</option>
-                </select>
-            </div>
-            <button class="pk-btn pk-btn-emphasized pk-btn-sm" @onclick="LoadHistory">
-                🔍 Применить
-            </button>
-            <button class="pk-btn pk-btn-default pk-btn-sm" @onclick="ResetFilters">
-                ✕ Сбросить
-            </button>
+            @if (IsOwner)
+            {
+                <div class="pk-stats-filter-group">
+                    <label class="pk-label">С</label>
+                    <input type="date" class="pk-input-sm" @bind="filterFrom" @bind:event="oninput" />
+                    <label class="pk-label">По</label>
+                    <input type="date" class="pk-input-sm" @bind="filterTo" @bind:event="oninput" />
+                </div>
+                <div class="pk-stats-filter-group">
+                    <label class="pk-label">Группировка</label>
+                    <select class="pk-input-sm" @bind="groupBy">
+                        <option value="raw">Все записи</option>
+                        <option value="hour">По часам</option>
+                        <option value="day">По дням</option>
+                    </select>
+                </div>
+                <button class="pk-btn pk-btn-emphasized pk-btn-sm" @onclick="LoadHistory">
+                    🔍 Применить
+                </button>
+                <button class="pk-btn pk-btn-default pk-btn-sm" @onclick="ResetFilters">
+                    ✕ Сбросить
+                </button>
+            }
+            else
+            {
+                <span style="font-size:0.8rem; color:#556B82">📅 Последние 24 часа</span>
+            }
+
             @if (activeView == "chart")
             {
                 <button class="pk-btn pk-btn-sm @(chartType == "bar" ? "pk-btn-emphasized" : "pk-btn-default")"
@@ -139,6 +148,7 @@
 
 @code {
     [Parameter] public int ParkingId { get; set; }
+    [Parameter] public bool IsOwner { get; set; } = false;
 
     class HistoryRow
     {
@@ -181,6 +191,12 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        if (!IsOwner)
+        {
+            filterTo = DateTime.Today.AddDays(1);
+            filterFrom = DateTime.Today;
+        }
+
         await LoadHistory();
     }
 

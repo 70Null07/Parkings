@@ -183,7 +183,7 @@
  @if (parking != null)
 {
     <div style="grid-column: 1 / -1; margin-top: 1rem;">
-        <ParkingStats ParkingId="@Id" />
+        <ParkingStats ParkingId="@Id" IsOwner="@isOwner" />
     </div>
 } 
 
@@ -191,7 +191,7 @@
 
     [Parameter] public int Id { get; set; }
     private bool isFavorite = false;
-    
+
     private System.Threading.Timer? _refreshTimer;
 
     class ParkingDto
@@ -329,6 +329,9 @@
                         { PropertyNameCaseInsensitive = true }) ?? new();
                 spaceCount = loaded.Count;
 
+                try
+                {
+                    
                 // Если сейчас режим загруженности — перерисовываем полигоны
                 if (viewMode == "occupancy")
                     await InvokeAsync(async () =>
@@ -336,6 +339,8 @@
                         await JS.InvokeVoidAsync("parkingCanvas.setOccupancy", json);
                         await JS.InvokeVoidAsync("parkingCanvas.enableOccupancyMode");
                     });
+                }
+                catch {}
             }
 
             await InvokeAsync(StateHasChanged);

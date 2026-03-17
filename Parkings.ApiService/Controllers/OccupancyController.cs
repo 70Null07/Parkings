@@ -111,24 +111,24 @@ namespace Parkings.ApiService.Controllers
             var result = group switch
             {
                 "hour" => logs
-                    .GroupBy(l => new DateTime(
-                        l.RecordedAt.Year, l.RecordedAt.Month, l.RecordedAt.Day,
-                        l.RecordedAt.Hour, 0, 0))
-                    .Select(g => new OccupancyHistoryDto
-                    {
-                        RecordedAt = g.Key,
-                        FreeSpots = (int)g.Average(x => x.FreeSpots),
-                        BusySpots = (int)g.Average(x => x.BusySpots),
-                        TotalSpots = g.First().TotalSpots
-                    }),
+    .GroupBy(l => new DateTime(
+        l.RecordedAt.Year, l.RecordedAt.Month, l.RecordedAt.Day,
+        l.RecordedAt.Hour, 0, 0))
+    .Select(g => new OccupancyHistoryDto
+    {
+        RecordedAt = g.Key,
+        FreeSpots = (int)Math.Round(g.Average(x => x.FreeSpots)),
+        BusySpots = (int)Math.Round(g.Average(x => x.BusySpots)),
+        TotalSpots = g.Last().TotalSpots   // ← Last актуальнее чем First
+    }),
                 "day" => logs
                     .GroupBy(l => l.RecordedAt.Date)
                     .Select(g => new OccupancyHistoryDto
                     {
                         RecordedAt = g.Key,
-                        FreeSpots = (int)g.Average(x => x.FreeSpots),
-                        BusySpots = (int)g.Average(x => x.BusySpots),
-                        TotalSpots = g.First().TotalSpots
+                        FreeSpots = (int)Math.Round(g.Average(x => x.FreeSpots)),
+                        BusySpots = (int)Math.Round(g.Average(x => x.BusySpots)),
+                        TotalSpots = g.Last().TotalSpots
                     }),
                 _ => logs.Select(l => new OccupancyHistoryDto
                 {

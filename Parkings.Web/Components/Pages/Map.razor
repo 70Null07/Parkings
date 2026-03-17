@@ -32,28 +32,61 @@
                 </button>
             </div>
         }
+        <!-- В map-toolbar после кнопок фильтра -->
+        @* @if (!string.IsNullOrEmpty(authToken))
+        {
+            <div style="display:flex; gap:0.5rem; align-items:center;">
+                @if (!isDrawingPolygon)
+                {
+                    <button class="mp-btn @(hasPolygonFilter ? "mp-btn-attention" : "mp-btn-default")"
+                            @onclick="StartDrawPolygon"
+                            title="Нарисовать зону поиска">
+                        ✏ @(hasPolygonFilter ? "Зона активна" : "Нарисовать зону")
+                    </button>
+
+                    @if (hasPolygonFilter)
+                    {
+                        <button class="mp-btn mp-btn-negative"
+                                @onclick="ClearPolygon"
+                                title="Сбросить зону">
+                            🗑
+                        </button>
+                    }
+                }
+                else
+                {
+                    <span style="font-size:0.8rem; color:#0070F2; font-weight:600;">
+                        🖊 Кликайте на карту...
+                    </span>
+                    <button class="mp-btn mp-btn-positive" @onclick="FinishDrawPolygon">
+                        ✓ Готово
+                    </button>
+                    <button class="mp-btn mp-btn-default" @onclick="CancelDrawPolygon">
+                        Отмена
+                    </button>
+                }
+            </div>
+        } *@
     </div>
 
     <div class="map-body">
         <div id="mainMap" class="map-canvas"></div>
 
-        @if (!string.IsNullOrEmpty(authToken))
-        {
+        <div class="map-right-panels">
+
+            <!-- Избранное -->
             <div class="map-favorites">
                 <div class="map-fav-header">
                     <span>⭐ Избранное</span>
                     <span class="mp-count">(@favorites.Count)</span>
                 </div>
-
                 @if (favLoading)
                 {
                     <div class="map-fav-empty">⏳</div>
                 }
                 else if (favorites.Count == 0)
                 {
-                    <div class="map-fav-empty">
-                        Нажмите ⭐ в балуне<br />чтобы добавить
-                    </div>
+                    <div class="map-fav-empty">Нажмите ⭐ в балуне<br />чтобы добавить</div>
                 }
                 else
                 {
@@ -76,7 +109,109 @@
                     }
                 }
             </div>
-        }
+
+            <!-- Зоны -->
+            @if (!string.IsNullOrEmpty(authToken))
+            {
+                <div class="map-favorites">
+                    <div class="map-fav-header">
+                        <span>🔷 Зоны</span>
+                        @if (!isDrawingPolygon && editingPolygonId == null)
+                        {
+                            <button class="map-fav-add" @onclick="StartDrawPolygon">+ Добавить</button>
+                        }
+                    </div>
+
+                    @if (isDrawingPolygon)
+                    {
+                        <div class="map-fav-drawing">
+                            <span>🖊 Кликайте на карту...</span>
+                            <div style="display:flex;gap:0.375rem;margin-top:0.5rem">
+                                <button class="mp-btn mp-btn-positive"
+                                        @onclick="FinishDrawPolygon">
+                                    ✓ Готово
+                                </button>
+                                <button class="mp-btn mp-btn-default"
+                                        @onclick="CancelDrawPolygon">
+                                    Отмена
+                                </button>
+                            </div>
+                        </div>
+                    }
+                    else if (polygons.Count == 0)
+                    {
+                        <div class="map-fav-empty">Нет зон</div>
+                    }
+
+                    @foreach (var poly in polygons)
+                    {
+                        var p = poly;
+                        <div class="map-fav-item">
+                            @if (editingPolygonId == p.Id)
+                            {
+                                <div style="display:flex;gap:0.375rem;align-items:center;margin-bottom:4px">
+                                    <input class="map-fav-name-input"
+                                           @bind="p.Name" />
+                                    <button class="mp-btn mp-btn-positive"
+                                            style="padding:2px 8px"
+                                            @onclick="() => FinishEditPolygon(p)">
+                                        ✓
+                                    </button>
+                                </div>
+                                <div style="display:flex;gap:0.375rem">
+                                    <button class="mp-btn mp-btn-default"
+                                            style="padding:2px 8px;font-size:0.72rem"
+                                            @onclick="CancelEditPolygon">
+                                        Отмена
+                                    </button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="map-fav-name">🔷 @p.Name</div>
+                                <div class="map-fav-stats" style="margin-top:4px">
+                                    <button class="mp-btn mp-btn-default"
+                                            style="padding:1px 8px;font-size:0.72rem"
+                                            @onclick="() => StartEditPolygon(p)"
+                                            title="Редактировать">
+                                        ✏
+                                    </button>
+                                    <button class="mp-btn mp-btn-default"
+                                            style="padding:1px 8px;font-size:0.72rem"
+                                            @onclick="() => FilterByPolygon(p)"
+                                            title="Показать парковки в зоне">
+                                        🔍
+                                    </button>
+                                    <button class="map-fav-remove"
+                                            @onclick="() => DeletePolygon(p.Id)"
+                                            title="Удалить">
+                                        ✕
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    @if (polygons.Count > 0)
+                    {
+                        <div style="padding:0.5rem 1rem;border-top:1px solid #f0f0f0">
+                            <button class="mp-btn mp-btn-default"
+                                    style="width:100%;font-size:0.75rem"
+                                    @onclick="ShowAllParkings">
+                                🌍 Сбросить фильтр
+                            </button>
+                        </div>
+                        <div style="padding:0.5rem 1rem;border-top:1px solid #f0f0f0">
+                            <button class="mp-btn mp-btn-default"
+                                    style="width:100%;font-size:0.75rem"
+                                    @onclick="InitMapWithPolygonFilter">
+                                🌍 Применить фильтр
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
     </div>
 </div>
 
@@ -122,6 +257,7 @@
         {
             await LoadMyParkings(client);
             await LoadFavorites(client);
+            await LoadPolygons(client);
         }
 
         // ← Сначала рендерим панель избранного чтобы карта знала свою ширину
@@ -130,7 +266,19 @@
 
         // ← Потом инициализируем карту — она уже знает правильный размер контейнера
         selfRef = DotNetObjectReference.Create(this);
-        await InitMap(allParkings);
+        if (polygons.Count > 0)
+        {
+            // Загружаем парковки в пересечении всех полигонов
+            await InitMapWithPolygonFilter();
+        }
+        else
+        {
+            await InitMap(allParkings);
+        }
+        // await InitMap(allParkings);
+
+        // if (hasPolygonFilter)
+        //     await LoadFilteredParkings();
     }
 
     private async Task LoadMyParkings(HttpClient client)
@@ -166,11 +314,17 @@
 
     private async Task InitMap(List<ParkingDto> parkings)
     {
-        var json = System.Text.Json.JsonSerializer.Serialize(parkings,
-            new System.Text.Json.JsonSerializerOptions
-            { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+        var opts = new System.Text.Json.JsonSerializerOptions
+        { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(parkings, opts);
         var favJson = System.Text.Json.JsonSerializer.Serialize(favoriteIds.ToList());
-        await JS.InvokeVoidAsync("parkingMap.init", "mainMap", json, selfRef, favJson);
+
+        // ← camelCase чтобы JS получил id/pointsJson с маленькой буквы
+        var allPolygonsJson = System.Text.Json.JsonSerializer.Serialize(
+            polygons.Select(p => new { id = p.Id, pointsJson = p.PointsJson }));
+
+        await JS.InvokeVoidAsync("parkingMap.init", "mainMap", json, selfRef, favJson, allPolygonsJson);
     }
 
     private async Task SetFilter(string filter)
@@ -243,4 +397,227 @@
             System.Text.Json.JsonSerializer.Serialize(favoriteIds.ToList()));
         StateHasChanged();
     }
+    private bool isDrawingPolygon = false;
+    private bool hasPolygonFilter = false;
+    private string polygonPointsJson = "[]";
+
+    private async Task LoadSavedPolygon(HttpClient client)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                "http://apiservice/api/mapfilter");
+            req.Headers.Authorization = new("Bearer", authToken);
+            var resp = await client.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+            {
+                var json = await resp.Content
+                    .ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                polygonPointsJson = json.GetProperty("points").GetString() ?? "[]";
+                var pts = System.Text.Json.JsonSerializer
+                    .Deserialize<List<double[]>>(polygonPointsJson);
+                hasPolygonFilter = pts != null && pts.Count >= 3;
+            }
+        }
+        catch { }
+    }
+
+    private async Task ClearPolygon()
+    {
+        hasPolygonFilter = false;
+        polygonPointsJson = "[]";
+        await JS.InvokeVoidAsync("parkingMap.clearPolygon");
+
+        var client = ClientFactory.CreateClient("api");
+        using var req = new HttpRequestMessage(HttpMethod.Delete,
+            "http://apiservice/api/mapfilter");
+        req.Headers.Authorization = new("Bearer", authToken);
+        await client.SendAsync(req);
+
+        // Показать все парковки
+        await InitMap(allParkings);
+    }
+
+    private async Task LoadFilteredParkings()
+    {
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            var encoded = Uri.EscapeDataString(polygonPointsJson);
+            var resp = await client.GetAsync(
+                "http://apiservice/api/parkings/public?polygon=" + encoded);
+            if (resp.IsSuccessStatusCode)
+            {
+                var filtered = await resp.Content
+                    .ReadFromJsonAsync<List<ParkingDto>>() ?? new();
+                await InitMap(filtered);
+            }
+        }
+        catch { }
+    }
+
+    class PolygonDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string PointsJson { get; set; } = "[]";
+    }
+
+    private List<PolygonDto> polygons = new();
+    private int? editingPolygonId = null;
+    // private bool isDrawingPolygon = false;
+
+    private async Task LoadPolygons(HttpClient client)
+    {
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                "http://apiservice/api/mapfilter");
+            req.Headers.Authorization = new("Bearer", authToken);
+            var resp = await client.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+                polygons = await resp.Content
+                    .ReadFromJsonAsync<List<PolygonDto>>(
+                        new System.Text.Json.JsonSerializerOptions
+                        { PropertyNameCaseInsensitive = true }) ?? new();
+        }
+        catch { }
+    }
+
+    private async Task StartDrawPolygon()
+    {
+        isDrawingPolygon = true;
+        editingPolygonId = null;
+        await JS.InvokeVoidAsync("parkingMap.enableDrawPolygon");
+    }
+
+    private async Task FinishDrawPolygon()
+    {
+        isDrawingPolygon = false;
+        var pointsJson = await JS.InvokeAsync<string>("parkingMap.finishDrawPolygon");
+        var pts = System.Text.Json.JsonSerializer.Deserialize<List<double[]>>(pointsJson);
+        if (pts == null || pts.Count < 3) return;
+
+        var client = ClientFactory.CreateClient("api");
+        using var req = new HttpRequestMessage(HttpMethod.Post, "http://apiservice/api/mapfilter");
+        req.Headers.Authorization = new("Bearer", authToken);
+        req.Content = JsonContent.Create(new { name = "Зона " + (polygons.Count + 1), pointsJson });
+        var resp = await client.SendAsync(req);
+        if (resp.IsSuccessStatusCode)
+        {
+            var created = await resp.Content.ReadFromJsonAsync<PolygonDto>(
+                new System.Text.Json.JsonSerializerOptions
+                { PropertyNameCaseInsensitive = true });
+            if (created != null)
+            {
+                polygons.Add(created);
+                await JS.InvokeVoidAsync("parkingMap.confirmNewPolygon",
+                    created.Id, created.PointsJson);
+
+                // ← фильтруем по новому полигону сразу
+                await InitMapWithPolygonFilter();
+            }
+        }
+        StateHasChanged();
+    }
+
+    private async Task CancelDrawPolygon()
+    {
+        isDrawingPolygon = false;
+        await JS.InvokeVoidAsync("parkingMap.cancelDraw");
+    }
+
+    private async Task StartEditPolygon(PolygonDto p)
+    {
+        editingPolygonId = p.Id;
+        await JS.InvokeVoidAsync("parkingMap.enableEditPolygon", p.Id);
+    }
+
+    private async Task FinishEditPolygon(PolygonDto p)
+    {
+        var pointsJson = await JS.InvokeAsync<string>("parkingMap.finishDrawPolygon");
+        editingPolygonId = null;
+
+        var client = ClientFactory.CreateClient("api");
+        using var req = new HttpRequestMessage(HttpMethod.Put,
+            "http://apiservice/api/mapfilter/" + p.Id);
+        req.Headers.Authorization = new("Bearer", authToken);
+        req.Content = JsonContent.Create(new { name = p.Name, pointsJson });
+        await client.SendAsync(req);
+
+        p.PointsJson = pointsJson;
+        StateHasChanged();
+    }
+
+    private async Task DeletePolygon(int id)
+    {
+        var client = ClientFactory.CreateClient("api");
+        using var req = new HttpRequestMessage(HttpMethod.Delete,
+            "http://apiservice/api/mapfilter/" + id);
+        req.Headers.Authorization = new("Bearer", authToken);
+        await client.SendAsync(req);
+
+        polygons.RemoveAll(p => p.Id == id);
+        await JS.InvokeVoidAsync("parkingMap.removePolygon", id);
+
+        await InitMapWithPolygonFilter();
+        StateHasChanged();
+    }
+
+    private async Task FilterByPolygon(PolygonDto p)
+    {
+        // Фильтруем парковки по выбранной зоне
+        var client = ClientFactory.CreateClient("api");
+        var encoded = Uri.EscapeDataString(p.PointsJson);
+        var resp = await client.GetAsync(
+            "http://apiservice/api/parkings/public?polygon=" + encoded);
+        if (resp.IsSuccessStatusCode)
+        {
+            var filtered = await resp.Content
+                .ReadFromJsonAsync<List<ParkingDto>>() ?? new();
+            await InitMap(filtered);
+        }
+    }
+
+    private async Task CancelEditPolygon()
+    {
+        editingPolygonId = null;
+        await JS.InvokeVoidAsync("parkingMap.cancelDraw");
+    }
+
+    private async Task ShowAllParkings()
+    {
+        await InitMap(allParkings);
+    }
+
+    private async Task InitMapWithPolygonFilter()
+    {
+        // Берём парковки которые попадают хотя бы в один полигон
+        var filtered = new List<ParkingDto>();
+        var client = ClientFactory.CreateClient("api");
+
+        foreach (var poly in polygons)
+        {
+            try
+            {
+                var encoded = Uri.EscapeDataString(poly.PointsJson);
+                var resp = await client.GetAsync(
+                    "http://apiservice/api/parkings/public?polygon=" + encoded);
+                if (resp.IsSuccessStatusCode)
+                {
+                    var inZone = await resp.Content
+                        .ReadFromJsonAsync<List<ParkingDto>>() ?? new();
+                    // Добавляем только новые (чтобы не дублировать)
+                    foreach (var p in inZone)
+                        if (!filtered.Any(x => x.Id == p.Id))
+                            filtered.Add(p);
+                }
+            }
+            catch { }
+        }
+
+        await InitMap(filtered);
+    }
+
+
 }

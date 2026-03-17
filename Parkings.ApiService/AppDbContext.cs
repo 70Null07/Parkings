@@ -10,7 +10,8 @@ namespace Parkings.ApiService
         public DbSet<OccupancyLog> OccupancyLogs { get; set; }
         public DbSet<Favorite> Favorites { get; set; }
         public DbSet<Message> Messages { get; set; }
-
+        public DbSet<UserMapFilter> UserMapFilters { get; set; }
+        public DbSet<UserMapPolygon> UserMapPolygons { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Favorite>()
@@ -34,6 +35,16 @@ namespace Parkings.ApiService
                 .HasOne(m => m.Receiver).WithMany()
                 .HasForeignKey(m => m.ReceiverId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<UserMapFilter>()
+                .HasOne(f => f.User).WithMany()
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<UserMapPolygon>()
+                .HasOne(f => f.User).WithMany()
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
 
@@ -43,6 +54,10 @@ namespace Parkings.ApiService
         public string Login { get; set; } = null!;
         public string Password { get; set; } = null!;
         public string? Email { get; set; }
+        public string? EmailConfirmCode { get; set; }
+        public bool EmailConfirmed { get; set; } = false;
+        public string? PasswordResetCode { get; set; }
+        public DateTime? PasswordResetCodeExpiry { get; set; }
         public ICollection<Parking> Parkings { get; set; } = new List<Parking>();
     }
 
@@ -108,5 +123,24 @@ namespace Parkings.ApiService
         public User Sender { get; set; } = null!;
         public User Receiver { get; set; } = null!;
         public Parking Parking { get; set; } = null!;
+    }
+
+    public class UserMapFilter
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public string PointsJson { get; set; } = "[]"; // [[lat,lon], ...]
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public User User { get; set; } = null!;
+    }
+
+    public class UserMapPolygon
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public string Name { get; set; } = "Зона";
+        public string PointsJson { get; set; } = "[]";
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public User User { get; set; } = null!;
     }
 }

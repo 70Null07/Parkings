@@ -1,196 +1,523 @@
 ﻿@page "/profile"
-
+@rendermode InteractiveServer
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject IHttpClientFactory ClientFactory
 
-@* <body style="background-image:url(/img/background.jpg);justify-content:center;align-items:center;"> *@
-    @if (!isLoggedIn)
-    {
-        @if (ProfileMode == "Login")
+@if (!isLoggedIn)
+{
+    <div class="auth-wrap">
+
+        @if (mode == "login")
         {
-            <div style="width:100%; margin:200px 200px auto; display:flex; flex-direction:column; align-items:flex-start;">
-
-                <input @bind="LoginField" style="width:288px; box-sizing:border-box; margin:0.75rem 0 0.5rem; height:2.5rem;border-radius: 0.25rem;border: 1px solid #bfbfbf; padding: 0 0.75rem;"
-                       id="username" type="text" placeholder="Пользователь" />
-
-                <input @bind="PasswordField" style="width:288px; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;border: 1px solid #bfbfbf; padding: 0 0.75rem;"
-                       id="password" type="password" placeholder="Пароль" />
-
-                <button @onclick="Login" style=" width:288px; border:1px solid #367db8; background-color:#5496cd; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;">
-                    Вход в систему
+            <div class="auth-card">
+                <h2 class="auth-title">Вход</h2>
+                @if (!string.IsNullOrEmpty(errorMsg))
+                {
+                    <div class="auth-error">@errorMsg</div>
+                }
+                <input class="auth-input" @bind="loginField" placeholder="Пользователь"
+                       autocomplete="username" />
+                <input class="auth-input" @bind="passwordField" type="password" placeholder="Пароль"
+                       autocomplete="current-password" />
+                <button class="auth-btn auth-btn-primary" @onclick="Login">Войти</button>
+                <button class="auth-btn auth-btn-link" @onclick='() => SetMode("forgot")'>
+                    Забыли пароль?
                 </button>
-
-                <button @onclick="SwitchMode" style="width:288px; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;border: 1px solid #bfbfbf;">
-                    Еще нет аккаунта?
+                <button class="auth-btn auth-btn-secondary" @onclick='() => SetMode("register")'>
+                    Нет аккаунта? Зарегистрироваться
                 </button>
             </div>
         }
-        @if(ProfileMode == "Register")
+
+        @if (mode == "register")
         {
-            <div style="width:100%; margin:200px 200px auto; display:flex; flex-direction:column; align-items:flex-start;">
-
-                <input @bind="LoginField" style="width:288px; box-sizing:border-box; margin:0.75rem 0 0.5rem; height:2.5rem;border-radius: 0.25rem;border: 1px solid #bfbfbf; padding: 0 0.75rem;"
-                       id="username" type="text" placeholder="Пользователь" />
-
-                <input @bind="PasswordField" style="width:288px; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;border: 1px solid #bfbfbf; padding: 0 0.75rem;"
-                       id="password" type="password" placeholder="Пароль" />
-
-                <button @onclick="Register" style=" width:288px; border:1px solid #367db8; background-color:#5496cd; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;">
+            <div class="auth-card">
+                <h2 class="auth-title">Регистрация</h2>
+                @if (!string.IsNullOrEmpty(errorMsg))
+                {
+                    <div class="auth-error">@errorMsg</div>
+                }
+                <input class="auth-input" @bind="loginField" placeholder="Имя пользователя"
+                       autocomplete="off" />
+                <input class="auth-input" @bind="emailField" type="email" placeholder="Email"
+                       autocomplete="off" />
+                <input class="auth-input" @bind="passwordField" type="password" placeholder="Пароль"
+                       autocomplete="new-password" />
+                <button class="auth-btn auth-btn-primary" @onclick="Register">
                     Зарегистрироваться
                 </button>
-
-                <button @onclick="SwitchMode" style="width:288px; margin:0.75rem 0 0.5rem; height:2.5rem; border-radius: 0.25rem;border: 1px solid #bfbfbf;">
-                    Уже есть аккаунт?
+                <button class="auth-btn auth-btn-secondary" @onclick='() => SetMode("login")'>
+                    Уже есть аккаунт? Войти
                 </button>
             </div>
         }
-    }
-    @if(isLoggedIn)
-    {
-        <h1>Мой профиль</h1>
 
+        @if (mode == "confirm-email")
+        {
+            <div class="auth-card">
+                <h2 class="auth-title">Подтверждение email</h2>
+                <p class="auth-hint">Код отправлен на <b>@emailField</b></p>
+                @if (!string.IsNullOrEmpty(errorMsg))
+                {
+                    <div class="auth-error">@errorMsg</div>
+                }
+                <input class="auth-input" @bind="codeField" placeholder="Код из письма" maxlength="6" />
+                <button class="auth-btn auth-btn-primary" @onclick="ConfirmEmail">Подтвердить</button>
+                <button class="auth-btn auth-btn-link" @onclick="ResendCode">Отправить снова</button>
+            </div>
+        }
+
+        @if (mode == "forgot")
+        {
+            <div class="auth-card">
+                <h2 class="auth-title">Восстановление пароля</h2>
+                @if (!string.IsNullOrEmpty(errorMsg))
+                {
+                    <div class="auth-error">@errorMsg</div>
+                }
+                @if (!string.IsNullOrEmpty(successMsg))
+                {
+                    <div class="auth-success">@successMsg</div>
+                }
+                <input class="auth-input" @bind="emailField" type="email" placeholder="Ваш email" />
+                <button class="auth-btn auth-btn-primary" @onclick="ForgotPassword">
+                    Отправить код
+                </button>
+                <button class="auth-btn auth-btn-link" @onclick='() => SetMode("reset")'>
+                    Уже есть код
+                </button>
+                <button class="auth-btn auth-btn-secondary" @onclick='() => SetMode("login")'>
+                    ← Назад
+                </button>
+            </div>
+        }
+
+        @if (mode == "reset")
+        {
+            <div class="auth-card">
+                <h2 class="auth-title">Новый пароль</h2>
+                @if (!string.IsNullOrEmpty(errorMsg))
+                {
+                    <div class="auth-error">@errorMsg</div>
+                }
+                <input class="auth-input" @bind="emailField" type="email" placeholder="Email" />
+                <input class="auth-input" @bind="codeField" placeholder="Код из письма" maxlength="6" />
+                <input class="auth-input" @bind="passwordField" type="password" placeholder="Новый пароль" />
+                <input class="auth-input" @bind="confirmPasswordField" type="password"
+                       placeholder="Повторите пароль" />
+                <button class="auth-btn auth-btn-primary" @onclick="ResetPassword">
+                    Сменить пароль
+                </button>
+                <button class="auth-btn auth-btn-secondary" @onclick='() => SetMode("login")'>
+                    ← Назад
+                </button>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div style="padding:1rem">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem">
+            <div>
+                <h1 style="margin:0">Добрый вечер, @userName</h1>
+                @* <span style="color:#556B82; font-size:0.875rem">@userName</span> *@
+            </div>
+            <button class="mp-btn mp-btn-negative" @onclick="Logout">Выйти</button>
+        </div>
+        <div style="display:flex; gap:1rem; margin-bottom:1rem; align-items:flex-start;">
+        <!-- Смена пароля -->
+        <div class="pk-card" style="flex:1">
+            <div class="pk-card-header">
+                <h2 class="pk-card-title">🔒 Изменить пароль</h2>
+            </div>
+            <div class="pk-card-body" style="display:flex;flex-direction:column;gap:0.5rem">
+                @if (!string.IsNullOrEmpty(pwdError))
+                {
+                    <div class="auth-error">@pwdError</div>
+                }
+                @if (!string.IsNullOrEmpty(pwdSuccess))
+                {
+                    <div class="auth-success">@pwdSuccess</div>
+                }
+                <input class="auth-input" @bind="oldPassword" type="password"
+                       placeholder="Текущий пароль" />
+                <input class="auth-input" @bind="newPassword" type="password"
+                       placeholder="Новый пароль" />
+                <input class="auth-input" @bind="confirmNewPassword" type="password"
+                       placeholder="Повторите новый пароль" />
+                <button class="mp-btn mp-btn-emphasized" @onclick="ChangePassword"
+                        disabled="@changingPassword">
+                    @(changingPassword ? "⏳ Сохранение..." : "💾 Сохранить")
+                </button>
+            </div>
+        </div>
+
+        <!-- Смена email -->
+        <div class="pk-card" style="flex:1">
+    <div class="pk-card-header">
+        <h2 class="pk-card-title">✉ Изменить email</h2>
+    </div>
+    <div class="pk-card-body" style="display:flex;flex-direction:column;gap:0.5rem">
+        @if (!string.IsNullOrEmpty(emailChangeError))
+        {
+            <div class="auth-error">@emailChangeError</div>
+        }
+        @if (!string.IsNullOrEmpty(emailChangeSuccess))
+        {
+            <div class="auth-success">@emailChangeSuccess</div>
+        }
+
+        @if (!emailCodeSent)
+        {
+            <div style="font-size:0.8rem;color:#556B82">
+                Текущий email: <b>@currentEmail</b>
+            </div>
+            <input class="auth-input" @bind="newEmailField"
+                   type="email" placeholder="Новый email" />
+            <button class="mp-btn mp-btn-emphasized"
+                    @onclick="RequestEmailChange"
+                    disabled="@emailChanging">
+                @(emailChanging ? "⏳ Отправка..." : "📨 Отправить код")
+            </button>
+        }
+        else
+        {
+            <div style="font-size:0.8rem;color:#556B82">
+                Код отправлен на <b>@newEmailField</b>
+            </div>
+            <input class="auth-input" @bind="emailChangeCode"
+                   placeholder="Код из письма" maxlength="6" />
+            <button class="mp-btn mp-btn-emphasized"
+                    @onclick="ConfirmEmailChange"
+                    disabled="@emailChanging">
+                @(emailChanging ? "⏳ Проверка..." : "✅ Подтвердить")
+            </button>
+            <button class="auth-btn auth-btn-link"
+                    @onclick="() => { emailCodeSent = false; }">
+                ← Изменить email
+            </button>
+        }
+        </div>
+    </div>
+    </div>
+
+
+        <!-- Мои парковки -->
         <MyParkings />
-    }
-@* </body> *@
+    </div>
+}
 
 @code {
-    private string token = string.Empty;
+    private string currentEmail = "";
+    private string newEmailField = "";
+    private string emailChangeCode = "";
+    private string emailChangeError = "";
+    private string emailChangeSuccess = "";
+    private bool emailCodeSent = false;
+    private bool emailChanging = false;
+
+    // ── Auth state ───────────────────────────────────────────
     private bool isLoggedIn = false;
-    private int userId;
+    private string token = "";
+    private int userId = 0;
+    private string mode = "login"; // login|register|confirm-email|forgot|reset
 
-    public string LoginField;
-    public string PasswordField;
-    public string ProfileMode = "Login";
+    // ── Form fields ──────────────────────────────────────────
+    private string loginField = "";
+    private string emailField = "";
+    private string passwordField = "";
+    private string confirmPasswordField = "";
+    private string codeField = "";
+    private int pendingUserId = 0;
 
-    [Inject] IHttpClientFactory ClientFactory { get; set; }
+    // ── Messages ─────────────────────────────────────────────
+    private string errorMsg = "";
+    private string successMsg = "";
+
+    // ── Change password ──────────────────────────────────────
+    private string oldPassword = "";
+    private string newPassword = "";
+    private string confirmNewPassword = "";
+    private string pwdError = "";
+    private string pwdSuccess = "";
+    private bool changingPassword = false;
+
+    // ── DTOs ─────────────────────────────────────────────────
+    record LoginResult(UserDto User, string Token);
+    record UserDto(int UserId, string DisplayName, string? Email);
+
+    private string userName = "";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        string userIdStr = string.Empty;
-        if (firstRender)
+        if (!firstRender) return;
+        try
         {
-            try
-            {
-                token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken");
-                userIdStr = await JS.InvokeAsync<string>("localStorage.getItem", "userId");
-            }
-            catch (Exception) { }
-
-            isLoggedIn = !string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(userIdStr);
-            if (isLoggedIn)
-                userId = int.Parse(userIdStr);
-
-            StateHasChanged();
+            token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken") ?? "";
+            var uid = await JS.InvokeAsync<string>("localStorage.getItem", "userId") ?? "";
+            userName = await JS.InvokeAsync<string>("localStorage.getItem", "username") ?? "";
+            isLoggedIn = !string.IsNullOrEmpty(token) && int.TryParse(uid, out userId);
         }
+        catch { }
+        StateHasChanged();
     }
 
-    public class LoginRequest
+    private void SetMode(string m)
     {
-        public string Login { get; set; }
-        public string Password { get; set; }
+        mode = m;
+        errorMsg = "";
+        successMsg = "";
     }
 
-    public class LoginResult
-    {
-        public UserDto User { get; set; }
-        public string Token { get; set; }
-    }
-
-    public class UserDto
-    {
-        public int UserId { get; set; }
-        public string DisplayName { get; set; } = null!;
-        public string? Email { get; set; }
-    }
-
+    // ── Логин ────────────────────────────────────────────────
     private async Task Login()
     {
-        var client = ClientFactory.CreateClient("api");
-
-        var req = new LoginRequest
+        errorMsg = "";
+        try
         {
-            Login = LoginField,
-            Password = PasswordField
-        };
+            var client = ClientFactory.CreateClient("api");
+            var resp = await client.PostAsJsonAsync("http://apiservice/api/auth/login",
+                new { login = loginField, password = passwordField });
 
-        var response = await client.PostAsJsonAsync("http://apiservice/api/auth/login", req);
-
-        if (response.IsSuccessStatusCode)
-        {
-            var result = await response.Content.ReadFromJsonAsync<LoginResult>();
-
-            try
+            if (resp.IsSuccessStatusCode)
             {
-                await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
-                await JS.InvokeVoidAsync("localStorage.setItem", "username", result.User.DisplayName);
-                await JS.InvokeVoidAsync("localStorage.setItem", "userId", result.User.UserId.ToString());
+                var result = await resp.Content.ReadFromJsonAsync<LoginResult>(
+                    new System.Text.Json.JsonSerializerOptions
+                    { PropertyNameCaseInsensitive = true });
+                await SaveAuth(result!);
             }
-            catch (Exception) { }
-
-            // currentUserName = result.User.DisplayName;
-            isLoggedIn = true;
-
-            Nav.NavigateTo(Nav.Uri, forceLoad: true);
-        }
-        else
-        {
-            try
+            else
             {
-                var error = await response.Content.ReadAsStringAsync();
-                await JS.InvokeVoidAsync("alert", $"Возникла проблема: {error}");
+                errorMsg = await resp.Content.ReadAsStringAsync();
             }
-            catch (Exception) { }
         }
+        catch { errorMsg = "Ошибка подключения"; }
     }
 
-    private void ChangePassword()
-    {
-
-    }
-
-    public class RegisterRequest
-    {
-        public string Login { get; set; }
-        public string Password { get; set; }
-    }
-
+    // ── Регистрация ──────────────────────────────────────────
     private async Task Register()
     {
-        var client = ClientFactory.CreateClient("api");
-
-        var req = new RegisterRequest
+        errorMsg = "";
+        if (string.IsNullOrWhiteSpace(emailField))
         {
-            Login = LoginField,
-            Password = PasswordField
-        };
-
-        var response = await client.PostAsJsonAsync("http://apiservice/api/auth/register", req);
-
-        if (response.IsSuccessStatusCode)
-        {
-            await Login();
+            errorMsg = "Введите email"; return;
         }
-        else
+        try
         {
-            try
+            var client = ClientFactory.CreateClient("api");
+            var resp = await client.PostAsJsonAsync("http://apiservice/api/auth/register",
+                new { login = loginField, password = passwordField, email = emailField });
+
+            if (resp.IsSuccessStatusCode)
             {
-                var error = await response.Content.ReadAsStringAsync();
-                await JS.InvokeVoidAsync("alert", $"Возникла проблема: {error}");
+                var json = await resp.Content
+                    .ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                pendingUserId = json.GetProperty("userId").GetInt32();
+                SetMode("confirm-email");
             }
-            catch (Exception) { }
+            else
+            {
+                errorMsg = await resp.Content.ReadAsStringAsync();
+            }
         }
+        catch { errorMsg = "Ошибка подключения"; }
     }
 
-    private void SwitchMode()
+    // ── Подтверждение email ──────────────────────────────────
+    private async Task ConfirmEmail()
     {
-        switch(ProfileMode)
+        errorMsg = "";
+        try
         {
-            case "Login":
-                ProfileMode = "Register";
-                break;
-            case "Register":
-                ProfileMode = "Login";
-                break;
+            var client = ClientFactory.CreateClient("api");
+            var resp = await client.PostAsJsonAsync("http://apiservice/api/auth/confirm-email",
+                new { userId = pendingUserId, code = codeField });
+
+            if (resp.IsSuccessStatusCode)
+            {
+                var result = await resp.Content.ReadFromJsonAsync<LoginResult>(
+                    new System.Text.Json.JsonSerializerOptions
+                    { PropertyNameCaseInsensitive = true });
+                await SaveAuth(result!);
+            }
+            else
+            {
+                errorMsg = await resp.Content.ReadAsStringAsync();
+            }
         }
+        catch { errorMsg = "Ошибка подключения"; }
+    }
+
+    private async Task ResendCode()
+    {
+        // Повторная регистрация с теми же данными отправит новый код
+        await Register();
+        if (string.IsNullOrEmpty(errorMsg))
+            successMsg = "Код отправлен повторно";
+    }
+
+    // ── Забыли пароль ────────────────────────────────────────
+    private async Task ForgotPassword()
+    {
+        errorMsg = ""; successMsg = "";
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            await client.PostAsJsonAsync("http://apiservice/api/auth/forgot-password",
+                new { email = emailField });
+            successMsg = "Если email существует — код отправлен";
+        }
+        catch { errorMsg = "Ошибка подключения"; }
+    }
+
+    // ── Сброс пароля ─────────────────────────────────────────
+    private async Task ResetPassword()
+    {
+        errorMsg = "";
+        if (passwordField != confirmPasswordField)
+        {
+            errorMsg = "Пароли не совпадают"; return;
+        }
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            var resp = await client.PostAsJsonAsync("http://apiservice/api/auth/reset-password",
+                new { email = emailField, code = codeField, newPassword = passwordField });
+
+            if (resp.IsSuccessStatusCode)
+            {
+                var result = await resp.Content.ReadFromJsonAsync<LoginResult>(
+                    new System.Text.Json.JsonSerializerOptions
+                    { PropertyNameCaseInsensitive = true });
+                await SaveAuth(result!);
+            }
+            else
+            {
+                errorMsg = await resp.Content.ReadAsStringAsync();
+            }
+        }
+        catch { errorMsg = "Ошибка подключения"; }
+    }
+
+    // ── Смена пароля (авторизован) ───────────────────────────
+    private async Task ChangePassword()
+    {
+        pwdError = ""; pwdSuccess = "";
+        if (newPassword != confirmNewPassword)
+        {
+            pwdError = "Новые пароли не совпадают"; return;
+        }
+        if (newPassword.Length < 6)
+        {
+            pwdError = "Пароль минимум 6 символов"; return;
+        }
+
+        changingPassword = true;
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                "http://apiservice/api/auth/change-password");
+            req.Headers.Authorization = new("Bearer", token);
+            req.Content = JsonContent.Create(new
+            {
+                oldPassword,
+                newPassword,
+                confirmPassword = confirmNewPassword
+            });
+            var resp = await client.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+            {
+                pwdSuccess = "✅ Пароль изменён";
+                oldPassword = newPassword = confirmNewPassword = "";
+            }
+            else
+            {
+                pwdError = await resp.Content.ReadAsStringAsync();
+            }
+        }
+        catch { pwdError = "Ошибка подключения"; }
+        finally { changingPassword = false; }
+    }
+
+    // ── Выход ────────────────────────────────────────────────
+    private async Task Logout()
+    {
+        await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
+        await JS.InvokeVoidAsync("localStorage.removeItem", "userId");
+        await JS.InvokeVoidAsync("localStorage.removeItem", "username");
+        Nav.NavigateTo("/profile", forceLoad: true);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────
+    private async Task SaveAuth(LoginResult result)
+    {
+        await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);
+        await JS.InvokeVoidAsync("localStorage.setItem", "userId",
+            result.User.UserId.ToString());
+        await JS.InvokeVoidAsync("localStorage.setItem", "username",
+            result.User.DisplayName);
+        if (!string.IsNullOrEmpty(result.User.Email))
+            await JS.InvokeVoidAsync("localStorage.setItem", "userEmail",
+                result.User.Email);
+        Nav.NavigateTo("/profile", forceLoad: true);
+    }
+
+    private async Task RequestEmailChange()
+    {
+        emailChangeError = ""; emailChanging = true;
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                "http://apiservice/api/auth/request-email-change");
+            req.Headers.Authorization = new("Bearer", token);
+            req.Content = JsonContent.Create(new { newEmail = newEmailField });
+            var resp = await client.SendAsync(req);
+
+            if (resp.IsSuccessStatusCode)
+                emailCodeSent = true;
+            else
+                emailChangeError = await resp.Content.ReadAsStringAsync();
+        }
+        catch { emailChangeError = "Ошибка подключения"; }
+        finally { emailChanging = false; }
+    }
+
+    private async Task ConfirmEmailChange()
+    {
+        emailChangeError = ""; emailChanging = true;
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                "http://apiservice/api/auth/confirm-email-change");
+            req.Headers.Authorization = new("Bearer", token);
+            req.Content = JsonContent.Create(new
+            {
+                newEmail = newEmailField,
+                code = emailChangeCode
+            });
+            var resp = await client.SendAsync(req);
+
+            if (resp.IsSuccessStatusCode)
+            {
+                currentEmail = newEmailField;
+                await JS.InvokeVoidAsync("localStorage.setItem",
+                    "userEmail", currentEmail);
+                emailCodeSent = false;
+                emailChangeCode = "";
+                newEmailField = "";
+                emailChangeSuccess = "✅ Email успешно изменён";
+            }
+            else
+            {
+                emailChangeError = await resp.Content.ReadAsStringAsync();
+            }
+        }
+        catch { emailChangeError = "Ошибка подключения"; }
+        finally { emailChanging = false; }
     }
 }

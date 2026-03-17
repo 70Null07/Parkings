@@ -16,7 +16,13 @@ namespace Parkings.ApiService.ApiDTOs
     {
         [Required] public string Login { get; set; } = null!;
         [Required] public string Password { get; set; } = null!;
+        [Required] public string Email { get; set; } = null!;
     }
+    public record ConfirmEmailRequest(int UserId, string Code);
+    public record ForgotPasswordRequest(string Email);
+    public record ResetPasswordRequest(string Email, string Code, string NewPassword);
+    public record ChangePasswordRequest(string OldPassword, string NewPassword, string ConfirmPassword);
+
     public class UserDto
     {
         public int UserId { get; set; }
@@ -130,4 +136,7 @@ namespace Parkings.ApiService.ApiDTOs
         public int BusySpots { get; set; }
         public int TotalSpots { get; set; }
     }
+
+    public record RequestEmailChangeRequest(string NewEmail);
+    public record ConfirmEmailChangeRequest(string NewEmail, string Code);
 }

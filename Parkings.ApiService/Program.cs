@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Parkings.ApiService;
+using Parkings.ApiService.Services;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +20,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer("Data Source=dmitr;Initial Catalog=Parkings;Integrated Security=True;Encrypt=False"));
 
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+
+builder.Services.AddSingleton<EmailService>();
 
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
@@ -48,7 +51,7 @@ builder.Services.AddAuthentication("Bearer")
     });
 
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
-    .WithOrigins("http://localhost:5150", "https://localhost:7150")
+    .WithOrigins("http://localhost:5150", "https://localhost:7150", "https://smartparkings.ru", "https://www.smartparkings.ru")
     .AllowAnyHeader()
     .AllowAnyMethod()
     .AllowCredentials()));

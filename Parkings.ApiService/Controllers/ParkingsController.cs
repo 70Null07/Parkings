@@ -147,9 +147,9 @@ namespace Parkings.ApiService.Controllers
         // GET api/parkings/public — без авторизации, для карты
         [HttpGet("public")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetPublic()
+        public async Task<IActionResult> GetPublic([FromQuery] string? polygon = null)
         {
-            var list = await _db.Parkings
+            var parkings = await _db.Parkings
                 .Where(p => p.Latitude != null && p.Longitude != null)
                 .Select(p => new PublicParkingDto
                 {
@@ -162,7 +162,37 @@ namespace Parkings.ApiService.Controllers
                     BusySpots = p.BusySpots
                 })
                 .ToListAsync();
-            return Ok(list);
+
+            if (!string.IsNullOrEmpty(polygon))
+            {
+                try
+                {
+                    var points = JsonSerializer.Deserialize<List<double[]>>(polygon) ?? new();
+                    if (points.Count >= 3)
+                        parkings = parkings
+                            .Where(p => IsPointInPolygon(p.Latitude!.Value, p.Longitude!.Value, points))
+                            .ToList();
+                }
+                catch { }
+            }
+
+            return Ok(parkings);
+        }
+
+        private static bool IsPointInPolygon(double lat, double lon, List<double[]> polygon)
+        {
+            bool inside = false;
+            int j = polygon.Count - 1;
+            for (int i = 0; i < polygon.Count; i++)
+            {
+                double xi = polygon[i][0], yi = polygon[i][1];
+                double xj = polygon[j][0], yj = polygon[j][1];
+                if ((yi > lon) != (yj > lon) &&
+                    lat < (xj - xi) * (lon - yi) / (yj - yi) + xi)
+                    inside = !inside;
+                j = i;
+            }
+            return inside;
         }
     }
 }

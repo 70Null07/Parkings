@@ -3,8 +3,12 @@
     placemarks: {},
     dotnetRef: null,
     favoriteIds: [],
+    filterPolygon: null,
+    filterPoints: [],
+    filterPolygons: {},   // { id: { polygon, points } }
+    editingId: null,      // id редактируемого полигона
 
-    init(elementId, parkingsJson, dotnetRef, favIdsJson) {
+    init(elementId, parkingsJson, dotnetRef, favIdsJson, savedPolygonsJson) {
         this.dotnetRef = dotnetRef;
         try { this.favoriteIds = JSON.parse(favIdsJson || '[]'); } catch { this.favoriteIds = []; }
 
@@ -16,6 +20,8 @@
             ymaps.ready(() => {
                 if (this.map) { this.map.destroy(); this.map = null; }
                 this.placemarks = {};
+                this.filterPolygons = {};  // ← сброс
+                this.editingId = null;
 
                 const parkings = JSON.parse(parkingsJson);
 
@@ -35,6 +41,10 @@
                         this.map.setBounds(this.map.geoObjects.getBounds(),
                             { checkZoomRange: true, zoomMargin: 60 });
                     } catch (e) { }
+                }
+
+                if (savedPolygonsJson) {
+                    this.loadAllPolygons(savedPolygonsJson);
                 }
             });
         };
@@ -129,5 +139,145 @@
         this.map.setCenter([lat, lon], 16, { duration: 400 });
         const entry = this.placemarks[parkingId];
         if (entry) entry.placemark.balloon.open();
-    }
+    },
+
+    _addPolygon(id, pointsJson) {
+        try {
+            const pts = JSON.parse(pointsJson);
+            if (!pts || pts.length < 3) return;
+
+            const polygon = new ymaps.Polygon(
+                [pts], {},
+                {
+                    fillColor: '#0070F230',
+                    strokeColor: '#0070F2',
+                    strokeWidth: 2,
+                    fillOpacity: 0.3
+                }
+            );
+            this.map.geoObjects.add(polygon);
+            this.filterPolygons[id] = { polygon, points: pts };
+        } catch { }
+    },
+
+    enableDrawPolygon() {
+        if (!this.map) return;
+        this.editingId = null;
+
+        // Временный полигон для рисования
+        this._drawingPolygon = new ymaps.Polygon(
+            [[]], {},
+            {
+                fillColor: '#0070F230',
+                strokeColor: '#0070F2',
+                strokeWidth: 2,
+                fillOpacity: 0.3,
+                editorDrawingCursor: 'crosshair',
+                editorMaxPoints: 30,
+            }
+        );
+        this.map.geoObjects.add(this._drawingPolygon);
+        this._drawingPolygon.editor.startDrawing();
+    },
+
+    enableEditPolygon(id) {
+        if (!this.map || !this.filterPolygons[id]) return;
+        this.editingId = id;
+
+        const { polygon } = this.filterPolygons[id];
+        polygon.editor.startEditing();
+    },
+
+    finishDrawPolygon() {
+        // Редактирование существующего
+        if (this.editingId !== null) {
+            const entry = this.filterPolygons[this.editingId];
+            if (!entry) return '[]';
+            entry.polygon.editor.stopEditing();
+            const coords = entry.polygon.geometry.getCoordinates()[0] ?? [];
+            entry.points = coords;
+            this.editingId = null;
+            return JSON.stringify(coords);
+        }
+
+        // Новый полигон
+        if (!this._drawingPolygon) return '[]';
+        this._drawingPolygon.editor.stopEditing();
+        const coords = this._drawingPolygon.geometry.getCoordinates()[0] ?? [];
+
+        // Удаляем временный, пересоздаём нормальный (без редактора)
+        this.map.geoObjects.remove(this._drawingPolygon);
+        this._drawingPolygon = null;
+
+        // Временный id пока не сохранён — вернём координаты, id придёт из API
+        this._pendingCoords = coords;
+        return JSON.stringify(coords);
+    },
+
+    confirmNewPolygon(id, pointsJson) {
+        if (!this._pendingCoords) return;
+        this._addPolygon(id, JSON.stringify(this._pendingCoords));
+        this._pendingCoords = null;
+    },
+
+    clearPolygon() {
+        if (this.filterPolygon) {
+            this.filterPolygon.editor.stopEditing();
+            this.map.geoObjects.remove(this.filterPolygon);
+            this.filterPolygon = null;
+        }
+        this.filterPoints = [];
+    },
+
+    loadSavedPolygon(pointsJson) {
+        try {
+            const pts = JSON.parse(pointsJson);
+            if (!pts || pts.length < 3) return;
+
+            if (this.filterPolygon) {
+                this.filterPolygon.editor.stopEditing();
+                this.map.geoObjects.remove(this.filterPolygon);
+            }
+
+            this.filterPolygon = new ymaps.Polygon(
+                [pts],
+                {},
+                {
+                    fillColor: '#0070F230',
+                    strokeColor: '#0070F2',
+                    strokeWidth: 2,
+                    fillOpacity: 0.3
+                }
+            );
+            this.map.geoObjects.add(this.filterPolygon);
+            this.filterPoints = pts;
+        } catch { }
+    },
+
+    cancelDraw() {
+        if (this._drawingPolygon) {
+            this._drawingPolygon.editor.stopEditing();
+            this.map.geoObjects.remove(this._drawingPolygon);
+            this._drawingPolygon = null;
+        }
+        if (this.editingId !== null) {
+            const entry = this.filterPolygons[this.editingId];
+            if (entry) entry.polygon.editor.stopEditing();
+            this.editingId = null;
+        }
+    },
+
+    loadAllPolygons(polygonsJson) {
+        try {
+            const list = JSON.parse(polygonsJson);
+            list.forEach(p => this._addPolygon(p.id, p.pointsJson));
+        } catch { }
+    },
+    removePolygon(id) {
+        const entry = this.filterPolygons[id];
+        if (!entry) return;
+        try { entry.polygon.editor.stopEditing(); } catch { }
+        this.map.geoObjects.remove(entry.polygon);
+        delete this.filterPolygons[id];
+    },
 };

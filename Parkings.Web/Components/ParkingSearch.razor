@@ -4,13 +4,16 @@
 
 <div class="ps-wrap">
     <input type="text"
-           class="ps-input"
-           placeholder="Поиск парковки..."
-           @bind="query"
-           @oninput="OnInput"
-           @onfocus="OnFocus"
-           @onblur="OnBlur"
-           autocomplete="off" />
+       class="ps-input"
+       placeholder="Поиск парковки..."
+       @bind="query"
+       @oninput="OnInput"
+       @onblur="OnBlur"
+       autocomplete="new-password"
+       data-lpignore="true"
+       data-form-type="other"
+       readonly="@isReadonly"
+       @onfocus="OnFocus" />
 
     @if (showDropdown && results.Count > 0)
     {
@@ -91,8 +94,12 @@
         Search();
     }
 
+    private bool isReadonly = true;
+
+
     private void OnFocus()
     {
+        isReadonly = false;
         if (query.Length >= 2)
             showDropdown = true;
     }
