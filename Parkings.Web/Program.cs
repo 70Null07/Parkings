@@ -13,6 +13,36 @@ builder.WebHost.ConfigureKestrel(options =>
             "SmartParkings");
     });
 });
+builder.Services.AddReverseProxy()
+    .AddServiceDiscoveryDestinationResolver() // ← для Aspire service discovery
+    .LoadFromMemory(
+        routes: new[]
+        {
+            new Yarp.ReverseProxy.Configuration.RouteConfig
+            {
+                RouteId = "hubs",
+                ClusterId = "api",
+                Match = new Yarp.ReverseProxy.Configuration.RouteMatch
+                {
+                    Path = "/hubs/{**catch-all}"
+                }
+            }
+        },
+        clusters: new[]
+        {
+            new Yarp.ReverseProxy.Configuration.ClusterConfig
+            {
+                ClusterId = "api",
+                Destinations = new Dictionary<string, Yarp.ReverseProxy.Configuration.DestinationConfig>
+                {
+                    ["api"] = new Yarp.ReverseProxy.Configuration.DestinationConfig
+                    {
+                        Address = "https+http://apiservice"
+                    }
+                }
+            }
+        });
+
 
 builder.AddServiceDefaults();
 
@@ -82,7 +112,7 @@ app.MapGet("/api/camera/snapshot", async (HttpContext context,
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
-
+app.MapReverseProxy();
 app.MapDefaultEndpoints();
 app.Run();
 

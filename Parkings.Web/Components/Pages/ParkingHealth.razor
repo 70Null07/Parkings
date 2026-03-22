@@ -1,0 +1,314 @@
+﻿@rendermode InteractiveServer
+@inject IHttpClientFactory ClientFactory
+@inject IJSRuntime JS
+
+<div class="pk-card pk-health-card">
+    <div class="pk-card-header">
+        <h2 class="pk-card-title">📡 Доступность видеопотока</h2>
+        <div style="display:flex;gap:0.5rem;align-items:center">
+            @if (uptime >= 0)
+            {
+                <span class="pk-health-uptime @(uptime >= 95 ? "pk-uptime-good"
+                                                                    : uptime >= 80 ? "pk-uptime-warn"
+                                                                    : "pk-uptime-bad")">
+                    @uptime% uptime
+                </span>
+            }
+            <select class="pk-input-sm" @bind="period" @bind:after="Load">
+                <option value="1">1 час</option>
+                <option value="6">6 часов</option>
+                <option value="24">24 часа</option>
+                <option value="168">7 дней</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="pk-card-body">
+        @if (isLoading)
+        {
+            <div class="pk-stats-empty">⏳ Загрузка...</div>
+        }
+        else if (logs.Count == 0)
+        {
+            <div class="pk-stats-empty">Нет данных — Worker ещё не проверял URL</div>
+        }
+        else
+        {
+            <!-- Grafana-style timeline -->
+            <div class="pk-health-timeline">
+                @foreach (var b in buckets)
+                {
+                    <div class="pk-health-block @(b.Status == "up" ? "pk-hb-up"
+                                                                        : b.Status == "down" ? "pk-hb-down"
+                                                                        : "pk-hb-unknown")"
+                         title="@b.Tooltip">
+                    </div>
+                }
+            </div>
+
+            <div class="pk-health-legend">
+                <span class="pk-health-time-left">@TimeLabel(true)</span>
+                <div style="display:flex;gap:1rem;font-size:0.7rem;color:#556B82">
+                    <span><span class="pk-hb-legend pk-hb-up"></span> Доступен</span>
+                    <span><span class="pk-hb-legend pk-hb-down"></span> Недоступен</span>
+                    <span><span class="pk-hb-legend pk-hb-unknown"></span> Нет данных</span>
+                </div>
+                <span class="pk-health-time-right">@TimeLabel(false)</span>
+            </div>
+
+            <!-- Последние события -->
+            @if (incidents.Count > 0)
+            {
+                <div style="margin-top:1rem">
+                    <div style="font-size:0.8rem;font-weight:700;color:#32363A;margin-bottom:0.5rem">
+                        Последние инциденты
+                    </div>
+                    @foreach (var inc in incidents.Take(5))
+                    {
+                        <div class="pk-health-incident">
+                            <span class="pk-hb-legend @(inc.IsDown ? "pk-hb-down" : "pk-hb-up")">
+                            </span>
+                            <span style="font-size:0.78rem;color:#32363A">
+                                @inc.StartTime.ToLocalTime().ToString("dd.MM HH:mm")
+                                @if (inc.Duration.HasValue)
+                                {
+                                    <span style="color:#556B82"> — @FormatDuration(inc.Duration.Value)</span>
+                                }
+                            </span>
+                            @if (!string.IsNullOrEmpty(inc.Error))
+                            {
+                                <span style="font-size:0.72rem;color:#BB0000;margin-left:0.5rem">
+                                    @inc.Error
+                                </span>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Среднее время ответа -->
+            @if (avgResponseMs > 0)
+            {
+                <div class="pk-health-metrics">
+                    <div class="pk-health-metric">
+                        <span class="pk-health-metric-label">Среднее время ответа</span>
+                        <span class="pk-health-metric-val">@avgResponseMs мс</span>
+                    </div>
+                    <div class="pk-health-metric">
+                        <span class="pk-health-metric-label">Макс. время ответа</span>
+                        <span class="pk-health-metric-val">@maxResponseMs мс</span>
+                    </div>
+                    <div class="pk-health-metric">
+                        <span class="pk-health-metric-label">Проверок всего</span>
+                        <span class="pk-health-metric-val">@totalChecks</span>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int ParkingId { get; set; }
+
+    class LogEntry
+    {
+        public bool IsAvailable { get; set; }
+        public int? ResponseMs { get; set; }
+        public string? ErrorMessage { get; set; }
+        public DateTime CheckedAt { get; set; }
+    }
+
+    class Bucket
+    {
+        public string Status { get; set; } = "unknown"; // up | down | unknown
+        public string Tooltip { get; set; } = "";
+    }
+
+    class Incident
+    {
+        public bool IsDown { get; set; }
+        public DateTime StartTime { get; set; }
+        public TimeSpan? Duration { get; set; }
+        public string? Error { get; set; }
+    }
+
+    private List<LogEntry> logs = new();
+    private List<Bucket> buckets = new();
+    private List<Incident> incidents = new();
+    private bool isLoading = false;
+    private double uptime = -1;
+    private int avgResponseMs = 0;
+    private int maxResponseMs = 0;
+    private int totalChecks = 0;
+    private int period = 24; // часов
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        isLoading = true;
+        StateHasChanged();
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            var from = DateTime.UtcNow.AddHours(-period);
+            var url = $"http://apiservice/api/parkings/{ParkingId}/health" +
+                      $"?from={from:yyyy-MM-ddTHH:mm:ss}";
+
+            var resp = await client.GetAsync(url);
+            if (resp.IsSuccessStatusCode)
+            {
+                var json = await resp.Content
+                    .ReadFromJsonAsync<System.Text.Json.JsonElement>();
+
+                logs = System.Text.Json.JsonSerializer
+                    .Deserialize<List<LogEntry>>(
+                        json.GetProperty("logs").GetRawText(),
+                        new System.Text.Json.JsonSerializerOptions
+                        { PropertyNameCaseInsensitive = true }) ?? new();
+
+                uptime = json.GetProperty("uptime").GetDouble();
+                totalChecks = json.GetProperty("total").GetInt32();
+
+                BuildBuckets();
+                BuildIncidents();
+                CalcMetrics();
+            }
+        }
+        catch { }
+        finally { isLoading = false; StateHasChanged(); }
+    }
+
+    private void BuildBuckets()
+    {
+        const int bucketCount = 80;
+        buckets = new();
+
+        if (logs.Count == 0)
+        {
+            buckets = Enumerable.Range(0, bucketCount)
+                .Select(_ => new Bucket { Status = "unknown", Tooltip = "Нет данных" })
+                .ToList();
+            return;
+        }
+
+        var from = DateTime.UtcNow.AddHours(-period);
+        var to = DateTime.UtcNow;
+        var interval = (to - from) / bucketCount;
+
+        for (int i = 0; i < bucketCount; i++)
+        {
+            var bucketFrom = from + interval * i;
+            var bucketTo = bucketFrom + interval;
+
+            var inBucket = logs
+                .Where(l => l.CheckedAt >= bucketFrom && l.CheckedAt < bucketTo)
+                .ToList();
+
+            if (inBucket.Count == 0)
+            {
+                buckets.Add(new Bucket
+                {
+                    Status = "unknown",
+                    Tooltip = $"{bucketFrom.ToLocalTime():HH:mm} — нет данных"
+                });
+            }
+            else
+            {
+                var upCount = inBucket.Count(l => l.IsAvailable);
+                var pct = upCount * 100 / inBucket.Count;
+                var status = pct >= 80 ? "up" : "down";
+                buckets.Add(new Bucket
+                {
+                    Status = status,
+                    Tooltip = $"{bucketFrom.ToLocalTime():HH:mm} — " +
+                              $"{(status == "up" ? "доступен" : "недоступен")} ({pct}%)"
+                });
+            }
+        }
+    }
+
+    private void BuildIncidents()
+    {
+        incidents = new();
+        if (logs.Count == 0) return;
+
+        bool? prevStatus = null;
+        DateTime? incidentStart = null;
+        string? incidentError = null;
+
+        foreach (var log in logs)
+        {
+            var isDown = !log.IsAvailable;
+            if (prevStatus == null)
+            {
+                prevStatus = isDown;
+                incidentStart = log.CheckedAt;
+                incidentError = log.ErrorMessage;
+                continue;
+            }
+
+            if (isDown != prevStatus)
+            {
+                if (incidentStart.HasValue)
+                {
+                    incidents.Add(new Incident
+                    {
+                        IsDown = prevStatus.Value,
+                        StartTime = incidentStart.Value,
+                        Duration = log.CheckedAt - incidentStart.Value,
+                        Error = prevStatus.Value ? incidentError : null
+                    });
+                }
+                prevStatus = isDown;
+                incidentStart = log.CheckedAt;
+                incidentError = log.ErrorMessage;
+            }
+        }
+
+        // Последний инцидент
+        if (incidentStart.HasValue && prevStatus.HasValue)
+        {
+            incidents.Add(new Incident
+            {
+                IsDown = prevStatus.Value,
+                StartTime = incidentStart.Value,
+                Duration = null, // текущий
+                Error = prevStatus.Value ? incidentError : null
+            });
+        }
+
+        incidents = incidents
+            .OrderByDescending(i => i.StartTime)
+            .ToList();
+    }
+
+    private void CalcMetrics()
+    {
+        var withMs = logs.Where(l => l.ResponseMs.HasValue && l.IsAvailable).ToList();
+        if (withMs.Count == 0) return;
+        avgResponseMs = (int)withMs.Average(l => l.ResponseMs!.Value);
+        maxResponseMs = withMs.Max(l => l.ResponseMs!.Value);
+    }
+
+    private string TimeLabel(bool isLeft)
+    {
+        var dt = isLeft
+            ? DateTime.Now.AddHours(-period)
+            : DateTime.Now;
+        return period <= 24
+            ? dt.ToString("HH:mm")
+            : dt.ToString("dd.MM HH:mm");
+    }
+
+    private string FormatDuration(TimeSpan ts)
+    {
+        if (ts.TotalMinutes < 60)
+            return $"{(int)ts.TotalMinutes} мин";
+        return $"{(int)ts.TotalHours} ч {ts.Minutes} мин";
+    }
+}

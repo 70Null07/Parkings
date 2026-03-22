@@ -1,0 +1,8 @@
+﻿@page "/privacy"
+@using Markdig
+
+@((MarkupString)Markdig.Markdown.ToHtml(content))
+
+@code {
+    private string content = File.ReadAllText("wwwroot/docs/privacy.md");
+}

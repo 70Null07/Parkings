@@ -1,0 +1,558 @@
+﻿@page "/admin"
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@inject IHttpClientFactory ClientFactory
+@inject NavigationManager Nav
+
+<HeadContent>
+    <link rel="stylesheet" href="css/myparkings.css" />
+    <link rel="stylesheet" href="css/admin.css" />
+    <link rel="stylesheet" href="css/parkingSearch.css" />
+    <link rel="stylesheet" href="css/auth.css" />
+</HeadContent>
+
+@if (!initialized)
+{
+    <div style="padding:2rem">⏳ Загрузка...</div>
+}
+else if (!isAdmin)
+{
+    <div style="padding:2rem;color:#BB0000">Нет доступа</div>
+}
+else
+{
+    <div class="adm-page">
+        <div class="adm-header">
+            <h1 class="adm-title">Панель администратора</h1>
+            <div class="adm-tabs">
+                <button class="adm-tab @(tab == "users" ? "adm-tab-active" : "")"
+                        @onclick='() => tab = "users"'>
+                    👥 Пользователи (@users.Count)
+                </button>
+                <button class="adm-tab @(tab == "parkings" ? "adm-tab-active" : "")"
+                        @onclick='() => tab = "parkings"'>
+                    🅿 Парковки (@parkings.Count)
+                </button>
+            </div>
+        </div>
+
+        @if (tab == "users")
+        {
+            <!-- ── Пользователи ── -->
+            <div class="adm-toolbar">
+                <input class="ps-input" style="max-width:300px"
+                       placeholder="Поиск по логину / email..."
+                       @bind="userSearch"
+                       @oninput="SearchUsers" />
+            </div>
+
+            <div class="adm-grid">
+                @foreach (var u in filteredUsers)
+                {
+                    var user = u;
+                    <div class="adm-card @(u.IsBlocked ? "adm-card-blocked" : "")">
+                        <div class="adm-card-head">
+                            <div>
+                                <span class="adm-name">@u.Login</span>
+                                @if (u.IsBlocked)
+                                {
+                                    <span class="adm-badge adm-badge-red">Заблокирован</span>
+                                }
+                                <span class="adm-badge @RoleBadgeClass(u.Role)">@u.Role</span>
+                            </div>
+                            <span class="adm-meta">🅿 @u.ParkingCount парк.</span>
+                        </div>
+                        <div class="adm-card-body">
+                            <div class="adm-kv">
+                                <span>Email</span>
+                                <span>@(u.Email ?? "—")</span>
+                            </div>
+                            <div class="adm-kv">
+                                <span>Email подтверждён</span>
+                                <span>@(u.EmailConfirmed ? "✅" : "❌")</span>
+                            </div>
+                        </div>
+
+                        <!-- Роль -->
+                        <div class="adm-card-actions">
+                            <select class="ps-input" style="height:32px;font-size:0.8rem"
+                                    value="@u.Role"
+                                    @onchange="e => SetRole(user, e.Value?.ToString() ?? u.Role)">
+                                <option value="user">user</option>
+                                <option value="admin">admin</option>
+                            </select>
+
+                            <button class="mp-btn @(u.IsBlocked ? "mp-btn-positive" : "mp-btn-attention")"
+                                    style="font-size:0.75rem"
+                                    @onclick="() => ToggleBlock(user)">
+                                @(u.IsBlocked ? "🔓 Разблокировать" : "🔒 Заблокировать")
+                            </button>
+
+                            <button class="mp-btn mp-btn-default"
+                                    style="font-size:0.75rem"
+                                    @onclick="() => OpenResetPassword(user)">
+                                🔑 Сброс пароля
+                            </button>
+
+                            <button class="mp-btn mp-btn-default"
+                                    style="font-size:0.75rem"
+                                    @onclick="() => OpenChangeEmail(user)">
+                                ✉ Сменить email
+                            </button>
+
+                            <button class="mp-btn mp-btn-negative"
+                                    style="font-size:0.75rem"
+                                    @onclick="() => DeleteUser(user)">
+                                🗑 Удалить
+                            </button>
+                        </div>
+
+                        @if (resetPasswordUserId == u.Id)
+                        {
+                            <div class="adm-inline-form">
+                                <input class="auth-input" @bind="resetPasswordValue"
+                                       type="password" placeholder="Новый пароль" />
+                                <div style="display:flex;gap:0.375rem;margin-top:0.5rem">
+                                    <button class="mp-btn mp-btn-positive"
+                                            @onclick="() => ConfirmResetPassword(user)">
+                                        ✓ Сохранить
+                                    </button>
+                                    <button class="mp-btn mp-btn-default"
+                                            @onclick="() => resetPasswordUserId = null">
+                                        Отмена
+                                    </button>
+                                </div>
+                                @if (!string.IsNullOrEmpty(resetPasswordMsg))
+                                {
+                                    <div class="auth-success" style="margin-top:0.5rem">
+                                        @resetPasswordMsg
+                                    </div>
+                                }
+                            </div>
+                        }
+                        @if (changeEmailUserId == u.Id)
+                        {
+                            <div class="adm-inline-form">
+                                <input class="auth-input" @bind="changeEmailValue"
+                                       type="email" placeholder="Новый email" />
+                                <div style="display:flex;gap:0.375rem;margin-top:0.5rem">
+                                    <button class="mp-btn mp-btn-positive"
+                                            @onclick="() => ConfirmChangeEmail(user)">
+                                        ✓ Сохранить
+                                    </button>
+                                    <button class="mp-btn mp-btn-default"
+                                            @onclick="() => changeEmailUserId = null">
+                                        Отмена
+                                    </button>
+                                </div>
+                                @if (!string.IsNullOrEmpty(changeEmailMsg))
+                                {
+                                    <div class="auth-success" style="margin-top:0.5rem">@changeEmailMsg</div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        @if (tab == "parkings")
+        {
+            <!-- ── Парковки ── -->
+            <div class="adm-toolbar">
+                <input class="ps-input" style="max-width:300px"
+                       placeholder="Поиск по названию / адресу..."
+                       @bind="parkingSearch"
+                       @oninput="SearchParkings" />
+            </div>
+
+            <div class="adm-grid">
+                @foreach (var p in filteredParkings)
+                {
+                    var parking = p;
+                    <div class="adm-card @(p.IsDisabled ? "adm-card-blocked" : "")">
+                        <div class="adm-card-head">
+                            <div>
+                                <span class="adm-name">@p.Name</span>
+                                @if (p.IsDisabled)
+                                {
+                                    <span class="adm-badge adm-badge-red">Отключена</span>
+                                }
+                            </div>
+                            <span class="adm-meta">
+                                🟢 @p.FreeSpots / 🔴 @p.BusySpots
+                            </span>
+                        </div>
+                        <div class="adm-card-body">
+                            <div class="adm-kv">
+                                <span>Адрес</span>
+                                <span>@p.Address</span>
+                            </div>
+                            <div class="adm-kv">
+                                <span>Владелец</span>
+                                <span>@p.OwnerLogin</span>
+                            </div>
+                            <div class="adm-kv">
+                                <span>Обновлено</span>
+                                <span>@(p.LastCheckedAt?.ToLocalTime().ToString("dd.MM HH:mm") ?? "—")</span>
+                            </div>
+                        </div>
+
+                        <div class="adm-card-actions">
+                            <button class="mp-btn @(p.IsDisabled ? "mp-btn-positive" : "mp-btn-attention")"
+                                    style="font-size:0.75rem"
+                                    @onclick="() => ToggleParking(parking)">
+                                @(p.IsDisabled ? "✅ Включить" : "⛔ Отключить")
+                            </button>
+
+                            <button class="mp-btn mp-btn-default"
+                                    style="font-size:0.75rem"
+                                    @onclick="() => OpenChangeOwner(parking)">
+                                👤 Сменить владельца
+                            </button>
+
+                            <button class="mp-btn mp-btn-negative"
+                                    style="font-size:0.75rem"
+                                    @onclick="() => DeleteParking(parking)">
+                                🗑 Удалить
+                            </button>
+                        </div>
+
+                        @if (changeOwnerParkingId == p.Id)
+                        {
+                            <div class="adm-inline-form">
+                                <select class="ps-input" style="height:32px;font-size:0.8rem"
+                                        @bind="newOwnerId">
+                                    <option value="0">— выберите пользователя —</option>
+                                    @foreach (var u in users.Where(u => !u.IsDeleted
+                                                                      && u.Role != "superadmin"))
+                                    {
+                                        <option value="@u.Id">@u.Login</option>
+                                    }
+                                </select>
+                                <div style="display:flex;gap:0.375rem;margin-top:0.5rem">
+                                    <button class="mp-btn mp-btn-positive"
+                                            @onclick="() => ConfirmChangeOwner(parking)">
+                                        ✓ Назначить
+                                    </button>
+                                    <button class="mp-btn mp-btn-default"
+                                            @onclick="() => changeOwnerParkingId = null">
+                                        Отмена
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    class UserDto
+    {
+        public int Id { get; set; }
+        public string Login { get; set; } = "";
+        public string? Email { get; set; }
+        public string Role { get; set; } = "user";
+        public bool IsDeleted { get; set; }
+        public bool IsBlocked { get; set; } 
+        public bool EmailConfirmed { get; set; }
+        public int ParkingCount { get; set; }
+    }
+
+    class ParkingDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
+        public string Address { get; set; } = "";
+        public bool IsDisabled { get; set; }
+        public int FreeSpots { get; set; }
+        public int BusySpots { get; set; }
+        public DateTime? LastCheckedAt { get; set; }
+        public string OwnerLogin { get; set; } = "";
+        public int OwnerId { get; set; }
+    }
+
+    private bool initialized = false;
+    private bool isAdmin = false;
+    private string token = "";
+    private string tab = "users";
+
+    private List<UserDto> users = new();
+    private List<ParkingDto> parkings = new();
+    private List<UserDto> filteredUsers = new();
+    private List<ParkingDto> filteredParkings = new();
+
+    private string userSearch = "";
+    private string parkingSearch = "";
+
+    private int? resetPasswordUserId = null;
+    private string resetPasswordValue = "";
+    private string resetPasswordMsg = "";
+
+    private int? changeOwnerParkingId = null;
+    private int newOwnerId = 0;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try
+        {
+            token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken") ?? "";
+            var role = await JS.InvokeAsync<string>("localStorage.getItem", "userRole") ?? "";
+            isAdmin = role == "superadmin";
+        }
+        catch { }
+
+        if (isAdmin)
+        {
+            await LoadUsers();
+            await LoadParkings();
+        }
+
+        initialized = true;
+        StateHasChanged();
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                "http://apiservice/api/admin/users");
+            req.Headers.Authorization = new("Bearer", token);
+            var resp = await client.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+                users = await resp.Content.ReadFromJsonAsync<List<UserDto>>(
+                    new System.Text.Json.JsonSerializerOptions
+                    { PropertyNameCaseInsensitive = true }) ?? new();
+            filteredUsers = users;
+        }
+        catch { }
+    }
+
+    private async Task LoadParkings()
+    {
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                "http://apiservice/api/admin/parkings");
+            req.Headers.Authorization = new("Bearer", token);
+            var resp = await client.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+                parkings = await resp.Content.ReadFromJsonAsync<List<ParkingDto>>(
+                    new System.Text.Json.JsonSerializerOptions
+                    { PropertyNameCaseInsensitive = true }) ?? new();
+            filteredParkings = parkings;
+        }
+        catch { }
+    }
+
+    private void SearchUsers(ChangeEventArgs e)
+    {
+        var q = e.Value?.ToString()?.ToLower() ?? "";
+        filteredUsers = string.IsNullOrEmpty(q)
+            ? users
+            : users.Where(u => u.Login.ToLower().Contains(q)
+                             || (u.Email?.ToLower().Contains(q) ?? false)).ToList();
+    }
+
+    private void SearchParkings(ChangeEventArgs e)
+    {
+        var q = e.Value?.ToString()?.ToLower() ?? "";
+        filteredParkings = string.IsNullOrEmpty(q)
+            ? parkings
+            : parkings.Where(p => p.Name.ToLower().Contains(q)
+                                || p.Address.ToLower().Contains(q)).ToList();
+    }
+
+    private async Task SetRole(UserDto u, string role)
+    {
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"http://apiservice/api/admin/users/{u.Id}/role");
+            req.Headers.Authorization = new("Bearer", token);
+            req.Content = JsonContent.Create(new { role });
+            await client.SendAsync(req);
+            u.Role = role;
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private async Task ToggleBlock(UserDto u)
+    {
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            var endpoint = u.IsBlocked ? "unblock" : "block";
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"http://apiservice/api/admin/users/{u.Id}/{endpoint}");
+            req.Headers.Authorization = new("Bearer", token);
+            await client.SendAsync(req);
+            u.IsBlocked = !u.IsBlocked;
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private async Task DeleteUser(UserDto u)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm",
+            $"Удалить пользователя {u.Login}? Это действие необратимо.")) return;
+
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Delete,
+                $"http://apiservice/api/admin/users/{u.Id}");
+            req.Headers.Authorization = new("Bearer", token);
+            await client.SendAsync(req);
+            users.Remove(u);
+            filteredUsers = filteredUsers.Where(x => x.Id != u.Id).ToList();
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private void OpenResetPassword(UserDto u)
+    {
+        resetPasswordUserId = u.Id;
+        resetPasswordValue = "";
+        resetPasswordMsg = "";
+    }
+
+    private async Task ConfirmResetPassword(UserDto u)
+    {
+        if (string.IsNullOrWhiteSpace(resetPasswordValue)) return;
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"http://apiservice/api/admin/users/{u.Id}/reset-password");
+            req.Headers.Authorization = new("Bearer", token);
+            req.Content = JsonContent.Create(new { newPassword = resetPasswordValue });
+            var resp = await client.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+            {
+                resetPasswordMsg = "✅ Пароль сброшен";
+                resetPasswordValue = "";
+            }
+        }
+        catch { }
+    }
+
+    private async Task ToggleParking(ParkingDto p)
+    {
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            var endpoint = p.IsDisabled ? "enable" : "disable";
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"http://apiservice/api/admin/parkings/{p.Id}/{endpoint}");
+            req.Headers.Authorization = new("Bearer", token);
+            await client.SendAsync(req);
+            p.IsDisabled = !p.IsDisabled;
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private async Task DeleteParking(ParkingDto p)
+    {
+        if (!await JS.InvokeAsync<bool>("confirm",
+            $"Удалить парковку «{p.Name}»?")) return;
+
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Delete,
+                $"http://apiservice/api/admin/parkings/{p.Id}");
+            req.Headers.Authorization = new("Bearer", token);
+            await client.SendAsync(req);
+            parkings.Remove(p);
+            filteredParkings = filteredParkings.Where(x => x.Id != p.Id).ToList();
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private void OpenChangeOwner(ParkingDto p)
+    {
+        changeOwnerParkingId = p.Id;
+        newOwnerId = p.OwnerId;
+    }
+
+    private async Task ConfirmChangeOwner(ParkingDto p)
+    {
+        if (newOwnerId == 0) return;
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"http://apiservice/api/admin/parkings/{p.Id}/owner");
+            req.Headers.Authorization = new("Bearer", token);
+            req.Content = JsonContent.Create(new { newOwnerId });
+            await client.SendAsync(req);
+            var newOwner = users.FirstOrDefault(u => u.Id == newOwnerId);
+            if (newOwner != null) p.OwnerLogin = newOwner.Login;
+            p.OwnerId = newOwnerId;
+            changeOwnerParkingId = null;
+            StateHasChanged();
+        }
+        catch { }
+    }
+
+    private string RoleBadgeClass(string role) => role switch
+    {
+        "admin"      => "adm-badge-blue",
+        "superadmin" => "adm-badge-purple",
+        _            => "adm-badge-gray"
+    };
+
+    private int? changeEmailUserId = null;
+    private string changeEmailValue = "";
+    private string changeEmailMsg = "";
+
+    private void OpenChangeEmail(UserDto u)
+    {
+        changeEmailUserId = u.Id;
+        changeEmailValue = u.Email ?? "";
+        changeEmailMsg = "";
+        // закрыть другие инлайн-формы
+        resetPasswordUserId = null;
+        changeOwnerParkingId = null;
+    }
+
+    private async Task ConfirmChangeEmail(UserDto u)
+    {
+        if (string.IsNullOrWhiteSpace(changeEmailValue)) return;
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"http://apiservice/api/admin/users/{u.Id}/email");
+            req.Headers.Authorization = new("Bearer", token);
+            req.Content = JsonContent.Create(new { newEmail = changeEmailValue });
+            var resp = await client.SendAsync(req);
+            if (resp.IsSuccessStatusCode)
+            {
+                changeEmailMsg = "✅ Email изменён";
+                u.Email = changeEmailValue;
+                StateHasChanged();
+            }
+            else
+            {
+                changeEmailMsg = "⚠ " + await resp.Content.ReadAsStringAsync();
+            }
+        }
+        catch { changeEmailMsg = "⚠ Ошибка подключения"; }
+    }
+}

@@ -1,0 +1,94 @@
+/* ── ParkingHealth ── */
+.pk-health-card { margin-top: 0; }
+
+.pk-health-uptime {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 12px;
+}
+
+.pk-uptime-good   { background:#F0FFF6; color:#107E3E; border:1px solid #AAE0BB; }
+.pk-uptime-warn   { background:#FFF8E6; color:#E9730C; border:1px solid #F5C97A; }
+.pk-uptime-bad    { background:#FFF0F0; color:#BB0000; border:1px solid #FFAAAA; }
+
+/* ── Timeline ── */
+.pk-health-timeline {
+    display: flex;
+    gap: 2px;
+    height: 36px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.pk-health-block {
+    flex: 1;
+    border-radius: 2px;
+    cursor: default;
+    transition: opacity 0.1s;
+}
+
+.pk-health-block:hover { opacity: 0.7; }
+
+.pk-hb-up      { background: #107E3E; }
+.pk-hb-down    { background: #BB0000; }
+.pk-hb-unknown { background: #E0E0E0; }
+
+.pk-health-legend {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.375rem;
+    font-size: 0.7rem;
+    color: #556B82;
+}
+
+.pk-health-time-left,
+.pk-health-time-right { font-size: 0.7rem; color: #8A9BA8; }
+
+.pk-hb-legend {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    margin-right: 3px;
+    vertical-align: middle;
+}
+
+/* ── Incidents ── */
+.pk-health-incident {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.pk-health-incident:last-child { border-bottom: none; }
+
+/* ── Metrics ── */
+.pk-health-metrics {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f0f0f0;
+    flex-wrap: wrap;
+}
+
+.pk-health-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pk-health-metric-label {
+    font-size: 0.72rem;
+    color: #556B82;
+}
+
+.pk-health-metric-val {
+    font-size: 0.9375rem;
+    font-weight: 700;
+    color: #32363A;
+}

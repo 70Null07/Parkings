@@ -44,6 +44,28 @@
                        autocomplete="off" />
                 <input class="auth-input" @bind="passwordField" type="password" placeholder="Пароль"
                        autocomplete="new-password" />
+                <input class="auth-input" @bind="confirmPasswordField" type="password"
+                       placeholder="Повторите пароль" />
+
+                <!-- Яндекс капча -->
+                <div id="captcha-container" class="smart-captcha"></div>
+
+                <!-- Согласие -->
+                <label style="display:flex;gap:0.5rem;align-items:flex-start;
+                               font-size:0.8rem;color:#32363A;cursor:pointer">
+                    <input type="checkbox" @bind="agreedToTerms"
+                           style="margin-top:2px;flex-shrink:0" />
+                    <span>
+                        Я согласен с
+                        <a href="/terms" target="_blank" style="color:#0070F2">
+                            условиями использования
+                        </a>
+                        и
+                        <a href="/privacy" target="_blank" style="color:#0070F2">
+                            политикой конфиденциальности
+                        </a>
+                    </span>
+                </label>
                 <button class="auth-btn auth-btn-primary" @onclick="Register">
                     Зарегистрироваться
                 </button>
@@ -210,6 +232,9 @@ else
 }
 
 @code {
+    private bool agreedToTerms = false;
+    private string captchaToken = "";
+
     private string currentEmail = "";
     private string newEmailField = "";
     private string emailChangeCode = "";
@@ -246,7 +271,7 @@ else
 
     // ── DTOs ─────────────────────────────────────────────────
     record LoginResult(UserDto User, string Token);
-    record UserDto(int UserId, string DisplayName, string? Email);
+    record UserDto(int UserId, string DisplayName, string? Email, string Role);
 
     private string userName = "";
 
@@ -269,6 +294,11 @@ else
         mode = m;
         errorMsg = "";
         successMsg = "";
+
+        if (m == "register")
+            // Небольшая задержка чтобы DOM успел отрендерить контейнер
+            Task.Delay(100).ContinueWith(_ =>
+                InvokeAsync(() => JS.InvokeVoidAsync("initCaptcha")));
     }
 
     // ── Логин ────────────────────────────────────────────────
@@ -300,10 +330,25 @@ else
     private async Task Register()
     {
         errorMsg = "";
+        if (string.IsNullOrWhiteSpace(loginField))
+        { errorMsg = "Введите имя пользователя"; return; }
+
         if (string.IsNullOrWhiteSpace(emailField))
-        {
-            errorMsg = "Введите email"; return;
-        }
+        { errorMsg = "Введите email"; return; }
+
+        if (passwordField.Length < 6)
+        { errorMsg = "Пароль минимум 6 символов"; return; }
+
+        if (passwordField != confirmPasswordField)
+        { errorMsg = "Пароли не совпадают"; return; }
+
+        if (!agreedToTerms)
+        { errorMsg = "Необходимо принять условия использования"; return; }
+
+        // Получаем токен капчи из JS
+        captchaToken = await JS.InvokeAsync<string>("getCaptchaToken") ?? "";
+        if (string.IsNullOrEmpty(captchaToken))
+        { errorMsg = "Пройдите проверку капчи"; return; }
         try
         {
             var client = ClientFactory.CreateClient("api");
@@ -462,6 +507,7 @@ else
         if (!string.IsNullOrEmpty(result.User.Email))
             await JS.InvokeVoidAsync("localStorage.setItem", "userEmail",
                 result.User.Email);
+        await JS.InvokeVoidAsync("localStorage.setItem", "userRole", result.User.Role ?? "user");
         Nav.NavigateTo("/profile", forceLoad: true);
     }
 

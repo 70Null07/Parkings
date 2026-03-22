@@ -20,7 +20,10 @@ namespace Parkings.Worker
             {
                 try
                 {
-                    await ProcessAllParkings(stoppingToken);
+                    await Task.WhenAll(
+                        ProcessAllParkings(stoppingToken),
+                        CheckAllUrls(stoppingToken)
+                    );
                 }
                 catch (Exception ex)
                 {
@@ -37,11 +40,17 @@ namespace Parkings.Worker
             var apiClient = httpFactory.CreateClient("api");
             var workerKey = config["Worker:ApiKey"];
 
-            // Получаем все парковки с полигонами
             using var req = new HttpRequestMessage(HttpMethod.Get,
                 $"https+http://apiservice/api/parkings/with-spaces");
             req.Headers.Add("X-Worker-Key", workerKey);
-            var resp = await apiClient.SendAsync(req, ct);
+
+            HttpResponseMessage resp;
+            try { resp = await apiClient.SendAsync(req, ct); }
+            catch (Exception ex)
+            {
+                logger.LogWarning("Не удалось получить парковки: {Msg}", ex.Message);
+                return;
+            }
 
             if (!resp.IsSuccessStatusCode)
             {
@@ -54,23 +63,39 @@ namespace Parkings.Worker
 
             logger.LogInformation("Обрабатываем {Count} парковок", parkings.Count);
 
-            // Обрабатываем параллельно
-            var tasks = parkings.Select(p => ProcessParking(p, workerKey!, ct));
+            // Каждая парковка — отдельный таск со своим таймаутом
+            // Исключение в одном таске не влияет на остальные
+            var tasks = parkings.Select(p => Task.Run(async () =>
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(TimeSpan.FromSeconds(25));
+                try
+                {
+                    await ProcessParking(p, workerKey!, cts.Token);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Необработанная ошибка парковки {Id}", p.Id);
+                }
+            }, ct));
+
             await Task.WhenAll(tasks);
         }
 
-        private async Task ProcessParking(ParkingWithSpacesDto parking, string workerKey, CancellationToken ct)
+        private async Task ProcessParking(ParkingWithSpacesDto parking,
+    string workerKey, CancellationToken ct)
         {
             if (string.IsNullOrEmpty(parking.StreamUrl)) return;
 
+            List<BoundingBox> carBoxes;
+            int frameWidth = 640, frameHeight = 480;
+
             try
             {
-                List<BoundingBox> carBoxes;
-                int frameWidth = 640, frameHeight = 480; // дефолт = размер canvas
-
                 if (parking.StreamType == "MJPEG")
                 {
-                    (carBoxes, frameWidth, frameHeight) = _detector.DetectFromMjpegWithSize(parking.StreamUrl);
+                    (carBoxes, frameWidth, frameHeight) =
+                        _detector.DetectFromMjpegWithSize(parking.StreamUrl);
                 }
                 else
                 {
@@ -78,13 +103,26 @@ namespace Parkings.Worker
                     var imageBytes = await imgClient.GetByteArrayAsync(parking.StreamUrl, ct);
                     (carBoxes, frameWidth, frameHeight) = _detector.DetectWithSize(imageBytes);
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                logger.LogWarning("Таймаут детекции парковки {Id}", parking.Id);
+                return;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Ошибка детекции парковки {Id}", parking.Id);
+                return;
+            }
 
-                logger.LogInformation("Парковка {Id}: кадр {W}x{H}, найдено {Cars} машин",
-                    parking.Id, frameWidth, frameHeight, carBoxes.Count);
+            logger.LogInformation("Парковка {Id}: {W}x{H}, машин: {Cars}",
+                parking.Id, frameWidth, frameHeight, carBoxes.Count);
 
-                var (free, busy, statuses) = MatchCarsToSpaces(
-                    carBoxes, parking.Spaces, frameWidth, frameHeight);
+            var (free, busy, statuses) = MatchCarsToSpaces(
+                carBoxes, parking.Spaces, frameWidth, frameHeight);
 
+            try
+            {
                 var apiClient = httpFactory.CreateClient("api");
                 using var req = new HttpRequestMessage(HttpMethod.Post,
                     "https+http://apiservice/api/parkings/" + parking.Id + "/occupancy");
@@ -103,7 +141,7 @@ namespace Parkings.Worker
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Ошибка обработки парковки {Id}", parking.Id);
+                logger.LogError(ex, "Ошибка отправки результатов парковки {Id}", parking.Id);
             }
         }
 
@@ -181,6 +219,103 @@ namespace Parkings.Worker
             }
 
             return inside;
+        }
+
+        private async Task CheckAllUrls(CancellationToken ct)
+        {
+            var apiClient = httpFactory.CreateClient("api");
+            var workerKey = config["Worker:ApiKey"]!;
+
+            // Получаем все парковки
+            using var req = new HttpRequestMessage(HttpMethod.Get,
+                "https+http://apiservice/api/parkings/with-spaces");
+            req.Headers.Add("X-Worker-Key", workerKey);
+            var resp = await apiClient.SendAsync(req, ct);
+            if (!resp.IsSuccessStatusCode) return;
+
+            var parkings = await resp.Content
+                .ReadFromJsonAsync<List<ParkingWithSpacesDto>>(cancellationToken: ct) ?? new();
+
+            var tasks = parkings
+                .Where(p => !string.IsNullOrEmpty(p.StreamUrl))
+                .Select(p => Task.Run(() => CheckUrl(p, workerKey, ct), ct));
+
+            await Task.WhenAll(tasks);
+        }
+
+        private async Task CheckUrl(ParkingWithSpacesDto parking,
+            string workerKey, CancellationToken ct)
+        {
+            bool isAvailable = false;
+            int? responseMs = null;
+            string? errorMsg = null;
+
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                if (parking.StreamType == "MJPEG")
+                {
+                    // Для MJPEG — просто HEAD запрос
+                    using var http = httpFactory.CreateClient("camera");
+                    using var req = new HttpRequestMessage(HttpMethod.Head, parking.StreamUrl);
+                    using var cts2 = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    cts2.CancelAfter(TimeSpan.FromSeconds(10));
+                    var resp = await http.SendAsync(req, cts2.Token);
+                    isAvailable = resp.IsSuccessStatusCode;
+                    responseMs = (int)sw.ElapsedMilliseconds;
+                }
+                else
+                {
+                    // JPG — скачиваем чтобы убедиться что реальное изображение
+                    using var http = httpFactory.CreateClient("camera");
+                    using var cts2 = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    cts2.CancelAfter(TimeSpan.FromSeconds(10));
+                    var bytes = await http.GetByteArrayAsync(parking.StreamUrl, cts2.Token);
+                    isAvailable = bytes.Length > 1000; // минимальный размер JPG
+                    responseMs = (int)sw.ElapsedMilliseconds;
+                }
+            }
+            catch (Exception ex)
+            {
+                isAvailable = false;
+                errorMsg = ex.Message.Length > 200
+                    ? ex.Message[..200]
+                    : ex.Message;
+                responseMs = (int)sw.ElapsedMilliseconds;
+            }
+            finally { sw.Stop(); }
+
+            // Отправляем результат в API
+            try
+            {
+                var apiClient = httpFactory.CreateClient("api");
+                using var req = new HttpRequestMessage(HttpMethod.Post,
+                    $"https+http://apiservice/api/parkings/{parking.Id}/health");
+                req.Headers.Add("X-Worker-Key", workerKey);
+                req.Content = JsonContent.Create(new
+                {
+                    isAvailable,
+                    responseMs,
+                    errorMessage = errorMsg
+                });
+                await apiClient.SendAsync(req, ct);
+            }
+            catch { /* не критично */ }
+
+            // Проверяем нужно ли слать алёрт
+            if (!isAvailable)
+                await CheckAndSendAlert(parking.Id, workerKey, ct);
+        }
+
+        private async Task CheckAndSendAlert(int parkingId,
+            string workerKey, CancellationToken ct)
+        {
+            // Проверяем через API — был ли алёрт уже отправлен
+            var apiClient = httpFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"https+http://apiservice/api/parkings/{parkingId}/health/alert");
+            req.Headers.Add("X-Worker-Key", workerKey);
+            await apiClient.SendAsync(req, ct);
         }
     }
 

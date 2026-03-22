@@ -28,6 +28,7 @@ namespace Parkings.ApiService.ApiDTOs
         public int UserId { get; set; }
         public string DisplayName { get; set; } = null!;
         public string? Email { get; set; }
+        public string? Role { get; set; }
     }
 
     public class ParkingDto
@@ -79,6 +80,7 @@ namespace Parkings.ApiService.ApiDTOs
         public int Id { get; set; }
         public int SpaceNumber { get; set; }
         public bool IsOccupied { get; set; }
+        public bool? IsManuallyBlocked { get; set; }
         public List<SpacePointDto> Points { get; set; } = new();
     }
 

@@ -150,7 +150,7 @@ namespace Parkings.ApiService.Controllers
         public async Task<IActionResult> GetPublic([FromQuery] string? polygon = null)
         {
             var parkings = await _db.Parkings
-                .Where(p => p.Latitude != null && p.Longitude != null)
+                .Where(p => p.Latitude != null && p.Longitude != null && !p.IsDisabled)
                 .Select(p => new PublicParkingDto
                 {
                     Id = p.Id,

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Parkings.ApiService;
 using Parkings.ApiService.Services;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,6 +23,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 builder.Services.AddSingleton<EmailService>();
+
+builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
+    .WithOrigins("http://localhost:5150", "https://localhost:7150", "https://smartparkings.ru", "https://www.smartparkings.ru")
+    .AllowAnyHeader()
+    .AllowAnyMethod()
+    .AllowCredentials()));
 
 builder.Services.AddAuthentication("Bearer")
     .AddJwtBearer("Bearer", options =>
@@ -50,12 +57,6 @@ builder.Services.AddAuthentication("Bearer")
         };
     });
 
-builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
-    .WithOrigins("http://localhost:5150", "https://localhost:7150", "https://smartparkings.ru", "https://www.smartparkings.ru")
-    .AllowAnyHeader()
-    .AllowAnyMethod()
-    .AllowCredentials()));
-
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<JwtService>();
 
@@ -70,6 +71,7 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
+//app.MapReverseProxy();
 
 if (app.Environment.IsDevelopment())
 {
@@ -84,6 +86,28 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true)
+    {
+        var uid = int.Parse(
+            context.User.FindFirstValue("uid") ?? "0");
+        if (uid > 0)
+        {
+            var db = context.RequestServices
+                .GetRequiredService<AppDbContext>();
+            var user = await db.Users.FindAsync(uid);
+            if (user == null || user.IsDeleted || user.IsBlocked)
+            {
+                context.Response.StatusCode = 403;
+                await context.Response.WriteAsync("Account blocked");
+                return;
+            }
+        }
+    }
+    await next();
+});
 
 app.MapHub<ChatHub>("/hubs/chat");
 

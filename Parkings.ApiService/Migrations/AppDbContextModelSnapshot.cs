@@ -128,11 +128,17 @@ namespace Parkings.ApiService.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("AlertsEnabled")
+                        .HasColumnType("bit");
+
                     b.Property<int>("BusySpots")
                         .HasColumnType("int");
 
                     b.Property<int>("FreeSpots")
                         .HasColumnType("int");
+
+                    b.Property<bool>("IsDisabled")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime?>("LastCheckedAt")
                         .HasColumnType("datetime2");
@@ -167,6 +173,38 @@ namespace Parkings.ApiService.Migrations
                     b.ToTable("Parkings");
                 });
 
+            modelBuilder.Entity("Parkings.ApiService.ParkingAlert", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("EmailSent")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ParkingId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParkingId");
+
+                    b.ToTable("ParkingAlerts");
+                });
+
             modelBuilder.Entity("Parkings.ApiService.ParkingSpace", b =>
                 {
                     b.Property<int>("Id")
@@ -174,6 +212,9 @@ namespace Parkings.ApiService.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool?>("IsManuallyBlocked")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsOccupied")
                         .HasColumnType("bit");
@@ -195,6 +236,36 @@ namespace Parkings.ApiService.Migrations
                     b.ToTable("ParkingSpaces");
                 });
 
+            modelBuilder.Entity("Parkings.ApiService.UrlHealthLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CheckedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsAvailable")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ParkingId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ResponseMs")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParkingId");
+
+                    b.ToTable("UrlHealthLogs");
+                });
+
             modelBuilder.Entity("Parkings.ApiService.User", b =>
                 {
                     b.Property<int>("Id")
@@ -203,6 +274,9 @@ namespace Parkings.ApiService.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("BlockedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
 
@@ -210,6 +284,12 @@ namespace Parkings.ApiService.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsBlocked")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
                     b.Property<string>("Login")
@@ -226,34 +306,13 @@ namespace Parkings.ApiService.Migrations
                     b.Property<DateTime?>("PasswordResetCodeExpiry")
                         .HasColumnType("datetime2");
 
-                    b.HasKey("Id");
-
-                    b.ToTable("Users");
-                });
-
-            modelBuilder.Entity("Parkings.ApiService.UserMapFilter", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("PointsJson")
+                    b.Property<string>("Role")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
-
-                    b.ToTable("UserMapFilters");
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("Parkings.ApiService.UserMapPolygon", b =>
@@ -353,6 +412,17 @@ namespace Parkings.ApiService.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Parkings.ApiService.ParkingAlert", b =>
+                {
+                    b.HasOne("Parkings.ApiService.Parking", "Parking")
+                        .WithMany()
+                        .HasForeignKey("ParkingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Parking");
+                });
+
             modelBuilder.Entity("Parkings.ApiService.ParkingSpace", b =>
                 {
                     b.HasOne("Parkings.ApiService.Parking", "Parking")
@@ -364,15 +434,15 @@ namespace Parkings.ApiService.Migrations
                     b.Navigation("Parking");
                 });
 
-            modelBuilder.Entity("Parkings.ApiService.UserMapFilter", b =>
+            modelBuilder.Entity("Parkings.ApiService.UrlHealthLog", b =>
                 {
-                    b.HasOne("Parkings.ApiService.User", "User")
+                    b.HasOne("Parkings.ApiService.Parking", "Parking")
                         .WithMany()
-                        .HasForeignKey("UserId")
+                        .HasForeignKey("ParkingId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("User");
+                    b.Navigation("Parking");
                 });
 
             modelBuilder.Entity("Parkings.ApiService.UserMapPolygon", b =>

@@ -105,18 +105,38 @@ namespace Parkings.Worker
 
         public (List<BoundingBox> boxes, int width, int height) DetectFromMjpegWithSize(string url)
         {
-            using var capture = new VideoCapture(url);
-            if (!capture.IsOpened()) return (new(), 640, 480);
+            // Таймаут на всю операцию — VideoCapture может зависнуть навсегда
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
 
-            using var frame = new Mat();
-            // Пропускаем первые кадры — бывают пустые
-            for (int i = 0; i < 3; i++)
-                capture.Read(frame);
+            try
+            {
+                var task = Task.Run(() =>
+                {
+                    using var capture = new VideoCapture(url);
+                    if (!capture.IsOpened()) return (new List<BoundingBox>(), 640, 480);
 
-            if (frame.Empty()) return (new(), 640, 480);
+                    using var frame = new Mat();
+                    for (int i = 0; i < 3; i++)
+                    {
+                        if (cts.Token.IsCancellationRequested)
+                            return (new List<BoundingBox>(), 640, 480);
+                        capture.Read(frame);
+                    }
 
-            int w = frame.Width, h = frame.Height;
-            return (DetectFromMat(frame), w, h);
+                    if (frame.Empty()) return (new List<BoundingBox>(), 640, 480);
+
+                    int w = frame.Width, h = frame.Height;
+                    return (DetectFromMat(frame), w, h);
+                }, cts.Token);
+
+                return task.Wait(TimeSpan.FromSeconds(20))
+                    ? task.Result
+                    : (new(), 640, 480);
+            }
+            catch
+            {
+                return (new(), 640, 480);
+            }
         }
 
         public void Dispose() => _session.Dispose();

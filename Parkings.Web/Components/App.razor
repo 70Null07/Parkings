@@ -24,7 +24,10 @@
     <script src="/js/chat.js"></script>
     <link rel="stylesheet" href="css/chat.css" />
     <link rel="stylesheet" href="css/auth.css" />
-
+    <link rel="stylesheet" href="css/admin.css" />
+    <script src="https://smartcaptcha.cloud.yandex.ru/captcha.js" defer></script>
+    <link rel="stylesheet" href="css/parking-health.css" />
+    <link rel="stylesheet" href="css/alerts-toggle.css" />
 </head>
 
 <body style="background-image:url(/img/background.jpg);">
@@ -42,6 +45,7 @@
             <nav class="top-nav">
                 <a href="/map">Карта</a>
                 <a href="/profile">Профиль</a>
+                <a href="/admin" id="adminLink" style="display:none">Админ</a>
             </nav>
         </div>
     </div>
@@ -54,6 +58,57 @@
     <footer style="bottom:0;">
        @*  <div class="page-bottom-bar"></div> *@
     </footer>
+
+    <script>
+        // Показываем ссылку если роль superadmin
+        document.addEventListener('DOMContentLoaded', () => {
+            const role = localStorage.getItem('userRole');
+            if (role === 'superadmin') {
+                const link = document.getElementById('adminLink');
+                if (link) link.style.display = '';
+            }
+        });
+    </script>
+
+    <script>
+        window.captchaWidget = null;
+
+        window.initCaptcha = function () {
+            const container = document.getElementById('captcha-container');
+            if (!container) return;
+
+            // Уничтожить предыдущий виджет если был
+            if (window.captchaWidget) {
+                window.captchaWidget.destroy();
+                window.captchaWidget = null;
+            }
+
+            // SmartCaptcha может быть ещё не загружена
+            if (typeof window.smartCaptcha === 'undefined') {
+                setTimeout(window.initCaptcha, 300);
+                return;
+            }
+
+            window.captchaWidget = window.smartCaptcha.render('captcha-container', {
+                sitekey: 'ysc1_dXW1HBPe8xiz3WCCVNROWKjOZW5ie7CpEGZX2Ewvcb240825',   // ← из Yandex Cloud консоли
+                callback: function(token) {
+                    window._captchaToken = token;
+                }
+            });
+        };
+
+        window.getCaptchaToken = function () {
+            return window._captchaToken || '';
+        };
+
+        // Сбросить токен после использования
+        window.resetCaptcha = function () {
+            window._captchaToken = '';
+            if (window.captchaWidget !== null && typeof window.smartCaptcha !== 'undefined') {
+                window.smartCaptcha.reset(window.captchaWidget);
+            }
+        };
+    </script>
 </body>
 
 </html>

@@ -35,13 +35,14 @@ namespace Parkings.ApiService.Controllers
                 Id = s.Id,
                 SpaceNumber = s.SpaceNumber,
                 IsOccupied = s.IsOccupied,
+                IsManuallyBlocked = s.IsManuallyBlocked,
                 Points = JsonSerializer.Deserialize<List<SpacePointDto>>(s.PointsJson) ?? new()
             });
 
             return Ok(result);
         }
 
-        // POST api/parkings/5/spaces — полная замена разметки
+        // POST api/parkings/5/spaces
         [HttpPost]
         public async Task<IActionResult> SaveSpaces(int parkingId, [FromBody] SaveSpacesRequest req)
         {
@@ -49,7 +50,6 @@ namespace Parkings.ApiService.Controllers
                 .FirstOrDefaultAsync(p => p.Id == parkingId && p.UserId == CurrentUserId);
             if (parking == null) return NotFound();
 
-            // Удаляем старую разметку и сохраняем новую целиком
             var existing = await _db.ParkingSpaces
                 .Where(s => s.ParkingId == parkingId)
                 .ToListAsync();
@@ -70,6 +70,49 @@ namespace Parkings.ApiService.Controllers
             await _db.SaveChangesAsync();
 
             return Ok(new { saved = req.Spaces.Count });
+        }
+
+        // POST api/parkings/{id}/spaces/{spaceId}/block
+        [HttpPost("{spaceId:int}/block")]
+        [Authorize]
+        public async Task<IActionResult> BlockSpace(
+            int parkingId, int spaceId, [FromBody] BlockSpaceRequest req)
+        {
+            var userId = int.Parse(User.FindFirstValue("uid") ?? "0");
+            var parking = await db.Parkings.FindAsync(parkingId);
+            if (parking == null || parking.UserId != userId)
+                return Forbid();
+
+            var space = await db.ParkingSpaces
+                .FirstOrDefaultAsync(s => s.Id == spaceId && s.ParkingId == parkingId);
+            if (space == null) return NotFound();
+
+            space.IsManuallyBlocked = req.Status; // true=занято, false=свободно, null=авто
+
+            if (req.Status.HasValue)
+                space.IsOccupied = req.Status.Value;
+
+            // Пересчитываем парковки
+            var allSpaces = await db.ParkingSpaces
+                .Where(s => s.ParkingId == parkingId)
+                .ToListAsync();
+
+            var busyCount = allSpaces.Count(s =>
+                s.Id == spaceId
+                    ? (req.Status ?? s.IsOccupied)
+                    : s.IsOccupied);
+
+            parking.BusySpots = busyCount;
+            parking.FreeSpots = allSpaces.Count - busyCount;
+
+            await db.SaveChangesAsync();
+
+            return Ok(new { spaceId, status = req.Status });
+        }
+
+        public class BlockSpaceRequest
+        {
+            public bool? Status { get; set; } // true=занято, false=свободно, null=снять блокировку
         }
     }
 }

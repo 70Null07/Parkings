@@ -166,12 +166,14 @@
 
         await JS.InvokeVoidAsync("chatClient.setRef", selfRef);
 
-        // Подключаем SignalR напрямую к API (не через Blazor-хост)
-        var apiBase = Nav.BaseUri.Contains("5150")
-            ? "http://localhost:5545"
-            : "http://localhost:5545"; // TODO: взять из конфига
-        await JS.InvokeVoidAsync("chatClient.start",
-            apiBase + "/hubs/chat", authToken, selfRef);
+        // // Подключаем SignalR напрямую к API (не через Blazor-хост)
+        // var apiBase = Nav.BaseUri.Contains("5150")
+        //     ? "http://localhost:5545"
+        //     : "http://localhost:5545"; // TODO: взять из конфига
+        var hubUrl = Nav.BaseUri.TrimEnd('/') + "/hubs/chat";
+        await JS.InvokeVoidAsync("chatClient.start", hubUrl, authToken, selfRef);
+        // await JS.InvokeVoidAsync("chatClient.start",
+        //     apiBase + "/hubs/chat", authToken, selfRef);
 
         await LoadUnreadCount();
         StateHasChanged();

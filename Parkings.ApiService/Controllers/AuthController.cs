@@ -65,13 +65,16 @@ namespace Parkings.ApiService.Controllers
             if (verify == PasswordVerificationResult.Failed)
                 return Unauthorized("Неверный логин или пароль");
 
-            var token = _jwt.GenerateToken(user.Id, user.Login);
+            if (user.IsDeleted) return Unauthorized("Аккаунт заблокирован");
+
+            var token = _jwt.GenerateToken(user.Id, user.Login, user.Role);
 
             var dto = new UserDto
             {
                 UserId = user.Id,
                 DisplayName = user.Login,
-                Email = user.Email
+                Email = user.Email,
+                Role = user.Role
             };
 
             return Ok(new
@@ -101,7 +104,7 @@ namespace Parkings.ApiService.Controllers
             await db.SaveChangesAsync();
 
             // Возвращаем токен как при логине
-            var token = _jwt.GenerateToken(user.Id, user.Login);
+            var token = _jwt.GenerateToken(user.Id, user.Login, user.Role);
             return Ok(new { token, user = new { userId = user.Id, displayName = user.Login } });
         }
 
@@ -143,7 +146,7 @@ namespace Parkings.ApiService.Controllers
             user.PasswordResetCodeExpiry = null;
             await db.SaveChangesAsync();
 
-            var token = _jwt.GenerateToken(user.Id, user.Login);
+            var token = _jwt.GenerateToken(user.Id, user.Login, user.Role);
             return Ok(new { token, user = new { userId = user.Id, displayName = user.Login } });
         }
 

@@ -59,9 +59,28 @@ namespace Parkings.ApiService.Controllers
                 foreach (var space in spaces)
                 {
                     var status = req.SpaceStatuses.FirstOrDefault(s => s.SpaceId == space.Id);
-                    if (status != null) space.IsOccupied = status.IsOccupied;
+                    if (status != null)
+                    {
+                        if (space.IsManuallyBlocked == null)
+                            space.IsOccupied = status.IsOccupied;
+                        else
+                            space.IsOccupied = space.IsManuallyBlocked.Value;
+                    }
                 }
+
+                var allSpaces = await _db.ParkingSpaces
+                    .Where(s => s.ParkingId == parkingId)
+                    .ToListAsync();
+
+                parking.BusySpots = allSpaces.Count(s => s.IsOccupied);
+                parking.FreeSpots = allSpaces.Count(s => !s.IsOccupied);
             }
+            else
+            {
+                parking.FreeSpots = req.FreeSpots;
+                parking.BusySpots = req.BusySpots;
+            }
+
 
             _db.OccupancyLogs.Add(new OccupancyLog
             {
