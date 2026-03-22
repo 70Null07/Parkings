@@ -66,47 +66,81 @@ app.MapStaticAssets();
 
 app.MapGet("/api/camera/snapshot", async (HttpContext context,
     [FromQuery] string url,
-    [FromQuery] string? type) =>
+    [FromQuery] string? type,
+    [FromQuery] string? login,
+    [FromQuery] string? password) =>
 {
     try
     {
+        var isRtsp = type?.ToUpper() == "RTSP" || url.StartsWith("rtsp://");
+        var isMjpeg = type?.ToUpper() == "MJPEG"
+                   || url.Contains("mjpg") || url.Contains("mjpeg");
+
+        if (isRtsp)
+        {
+            // Встраиваем Basic-авторизацию в URL если есть
+            var streamUrl = url;
+            if (!string.IsNullOrEmpty(login) && !string.IsNullOrEmpty(password))
+            {
+                var uri = new Uri(url);
+                streamUrl = $"{uri.Scheme}://{login}:{password}@{uri.Host}:{uri.Port}{uri.PathAndQuery}";
+            }
+
+            var frameBytes = await Task.Run(() =>
+            {
+                using var cap = new OpenCvSharp.VideoCapture(
+                    streamUrl, OpenCvSharp.VideoCaptureAPIs.FFMPEG);
+                if (!cap.IsOpened()) return null;
+
+                using var frame = new OpenCvSharp.Mat();
+                // Пропускаем буферные кадры
+                for (int i = 0; i < 5; i++) cap.Read(frame);
+                if (frame.Empty()) return null;
+
+                return frame.ToBytes(".jpg");
+            });
+
+            if (frameBytes == null)
+            { context.Response.StatusCode = 502; return; }
+
+            context.Response.ContentType = "image/jpeg";
+            await context.Response.Body.WriteAsync(frameBytes);
+            return;
+        }
+
         var handler = new HttpClientHandler { AllowAutoRedirect = true };
         using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
 
-        var isMjpeg = type?.ToUpper() == "MJPEG"
-            || url.Contains("mjpg")
-            || url.Contains("mjpeg");
+        // Basic auth для JPG/MJPEG
+        if (!string.IsNullOrEmpty(login) && !string.IsNullOrEmpty(password))
+        {
+            var creds = Convert.ToBase64String(
+                System.Text.Encoding.UTF8.GetBytes($"{login}:{password}"));
+            client.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", creds);
+        }
 
         if (isMjpeg)
         {
-            // Для MJPEG — читаем поток и извлекаем первый JPEG кадр
             using var resp = await client.GetAsync(url,
                 HttpCompletionOption.ResponseHeadersRead);
             await using var stream = await resp.Content.ReadAsStreamAsync();
-
             var frameBytes = await ExtractFirstMjpegFrame(stream);
             if (frameBytes != null)
             {
                 context.Response.ContentType = "image/jpeg";
                 await context.Response.Body.WriteAsync(frameBytes);
             }
-            else
-            {
-                context.Response.StatusCode = 502;
-            }
+            else context.Response.StatusCode = 502;
         }
         else
         {
-            // JPG — как раньше
             var bytes = await client.GetByteArrayAsync(url);
             context.Response.ContentType = "image/jpeg";
             await context.Response.Body.WriteAsync(bytes);
         }
     }
-    catch
-    {
-        context.Response.StatusCode = 502;
-    }
+    catch { context.Response.StatusCode = 502; }
 })
 .AllowAnonymous();
 

@@ -35,7 +35,7 @@ builder.Services.AddHttpClient("camera", client =>
 });
 
 builder.Services.AddSingleton<YoloDetector>(sp =>
-    new YoloDetector(builder.Configuration["Yolo:ModelPath"]!));
+    new YoloDetector(builder.Configuration));
 
 builder.Services.AddHostedService<ParkingWorker>();
 

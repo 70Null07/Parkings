@@ -41,6 +41,9 @@ namespace Parkings.ApiService.ApiDTOs
         public string? StreamUrl { get; set; }
         public string StreamType { get; set; } = "JPG";
         public int RefreshInterval { get; set; }
+        public string YoloModel { get; set; } = "classic";
+        public string? StreamLogin { get; set; }
+        public string? StreamPassword { get; set; }
         public int FreeSpots { get; set; }
         public int BusySpots { get; set; }
         public int UserId { get; set; }
@@ -55,6 +58,10 @@ namespace Parkings.ApiService.ApiDTOs
         public double? Longitude { get; set; }
         public string? StreamUrl { get; set; }
         public string StreamType { get; set; } = "JPG";
+        public string YoloModel { get; set; } = "classic";
+        public string? StreamLogin { get; set; }
+        public string? StreamPassword { get; set; }
+
         [Range(1, 3600)] public int RefreshInterval { get; set; } = 5;
     }
 
@@ -66,6 +73,9 @@ namespace Parkings.ApiService.ApiDTOs
         public double? Longitude { get; set; }
         public string? StreamUrl { get; set; }
         public string StreamType { get; set; } = "JPG";
+        public string YoloModel { get; set; } = "classic";
+        public string? StreamLogin { get; set; }
+        public string? StreamPassword { get; set; }
         [Range(1, 3600)] public int RefreshInterval { get; set; } = 5;
     }
 
@@ -117,6 +127,9 @@ namespace Parkings.ApiService.ApiDTOs
         public string? StreamUrl { get; set; }
         public string StreamType { get; set; } = "JPG";
         public int RefreshInterval { get; set; }
+        public string YoloModel { get; set; } = "classic";   
+        public string? StreamLogin { get; set; }               
+        public string? StreamPassword { get; set; }           
         public List<ParkingSpaceDto> Spaces { get; set; } = new();
     }
 

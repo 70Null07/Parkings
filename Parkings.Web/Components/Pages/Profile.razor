@@ -283,6 +283,7 @@ else
             token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken") ?? "";
             var uid = await JS.InvokeAsync<string>("localStorage.getItem", "userId") ?? "";
             userName = await JS.InvokeAsync<string>("localStorage.getItem", "username") ?? "";
+            currentEmail = await JS.InvokeAsync<string>("localStorage.getItem", "userEmail") ?? "";
             isLoggedIn = !string.IsNullOrEmpty(token) && int.TryParse(uid, out userId);
         }
         catch { }
@@ -493,6 +494,7 @@ else
         await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
         await JS.InvokeVoidAsync("localStorage.removeItem", "userId");
         await JS.InvokeVoidAsync("localStorage.removeItem", "username");
+        await JS.InvokeVoidAsync("localStorage.removeItem", "userRole");
         Nav.NavigateTo("/profile", forceLoad: true);
     }
 
@@ -505,8 +507,7 @@ else
         await JS.InvokeVoidAsync("localStorage.setItem", "username",
             result.User.DisplayName);
         if (!string.IsNullOrEmpty(result.User.Email))
-            await JS.InvokeVoidAsync("localStorage.setItem", "userEmail",
-                result.User.Email);
+            await JS.InvokeVoidAsync("localStorage.setItem", "userEmail", result.User.Email);
         await JS.InvokeVoidAsync("localStorage.setItem", "userRole", result.User.Role ?? "user");
         Nav.NavigateTo("/profile", forceLoad: true);
     }

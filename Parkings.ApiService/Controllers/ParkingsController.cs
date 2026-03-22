@@ -48,11 +48,14 @@ namespace Parkings.ApiService.Controllers
             {
                 Name = req.Name.Trim(),
                 Address = req.Address.Trim(),
-                Latitude = req.Latitude,        // ← добавить
-                Longitude = req.Longitude,      // ← добавить
+                Latitude = req.Latitude,        
+                Longitude = req.Longitude,      
                 StreamUrl = req.StreamUrl?.Trim(),
                 StreamType = req.StreamType,
                 RefreshInterval = req.RefreshInterval,
+                YoloModel = req.YoloModel,
+                StreamLogin = req.StreamLogin,
+                StreamPassword = req.StreamPassword,
                 UserId = CurrentUserId
             };
 
@@ -73,11 +76,14 @@ namespace Parkings.ApiService.Controllers
 
             entity.Name = req.Name.Trim();
             entity.Address = req.Address.Trim();
-            entity.Latitude = req.Latitude;         // ← добавить
-            entity.Longitude = req.Longitude;       // ← добавить
+            entity.Latitude = req.Latitude;        
+            entity.Longitude = req.Longitude;       
             entity.StreamUrl = req.StreamUrl?.Trim();
             entity.StreamType = req.StreamType;
             entity.RefreshInterval = req.RefreshInterval;
+            entity.YoloModel = req.YoloModel;
+            entity.StreamLogin = req.StreamLogin;
+            entity.StreamPassword = req.StreamPassword;
 
             await _db.SaveChangesAsync();
             return Ok(ToDto(entity));
@@ -106,6 +112,9 @@ namespace Parkings.ApiService.Controllers
             StreamUrl = p.StreamUrl,
             StreamType = p.StreamType,
             RefreshInterval = p.RefreshInterval,
+            YoloModel = p.YoloModel,
+            StreamLogin = p.StreamLogin,
+            StreamPassword = p.StreamPassword,
             FreeSpots = p.FreeSpots,
             BusySpots = p.BusySpots,
             UserId = p.UserId
@@ -133,6 +142,9 @@ namespace Parkings.ApiService.Controllers
                 StreamUrl = p.StreamUrl,
                 StreamType = p.StreamType,
                 RefreshInterval = p.RefreshInterval,
+                YoloModel = p.YoloModel,
+                StreamLogin = p.StreamLogin,
+                StreamPassword = p.StreamPassword,
                 Spaces = p.Spaces.Select(s => new ParkingSpaceDto
                 {
                     Id = s.Id,

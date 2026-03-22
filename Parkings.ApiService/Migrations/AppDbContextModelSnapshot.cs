@@ -156,6 +156,12 @@ namespace Parkings.ApiService.Migrations
                     b.Property<int>("RefreshInterval")
                         .HasColumnType("int");
 
+                    b.Property<string>("StreamLogin")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("StreamPassword")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("StreamType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -165,6 +171,10 @@ namespace Parkings.ApiService.Migrations
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
+
+                    b.Property<string>("YoloModel")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 

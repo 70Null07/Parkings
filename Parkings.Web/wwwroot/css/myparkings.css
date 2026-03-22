@@ -460,3 +460,10 @@
         border-color: var(--sapPositiveColor, #107E3E);
         color: var(--sapPositiveColor, #107E3E);
     }
+
+    .mp-type-btn.selected-rtsp {
+        background: #FFF3E0;
+        border-color: #E9730C;
+        color: #E9730C;
+        font-weight: 600;
+    }

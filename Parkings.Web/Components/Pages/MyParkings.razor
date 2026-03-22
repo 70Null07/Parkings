@@ -168,6 +168,10 @@
                                 @onclick='() => form.StreamType = "MJPEG"'>
                             🎥 MJPEG
                         </button>
+                        <button class="mp-type-btn @(form.StreamType == "RTSP" ? "selected-rtsp" : "")"
+                                @onclick='() => form.StreamType = "RTSP"'>
+                            📡 RTSP
+                        </button>
                     </div>
                 </div>
 
@@ -177,6 +181,29 @@
                            type="number" min="1" max="3600"
                            placeholder="5"
                            @bind="form.RefreshInterval" @bind:event="oninput" />
+                </div>
+                
+                <!-- Модель детекции -->
+                <div class="mp-field">
+                    <label class="mp-label">Модель детекции</label>
+                    <select class="mp-input" @bind="form.YoloModel">
+                        <option value="classic">Классическая (стандартный ракурс)</option>
+                        <option value="extended">Расширенная (сложные условия)</option>
+                        <option value="vertical">Вертикальная (камера сверху)</option>
+                    </select>
+                </div>
+
+                <!-- Авторизация камеры -->
+                <div class="mp-field">
+                    <label class="mp-label">Логин камеры</label>
+                    <input class="mp-input" @bind="form.StreamLogin"
+                           placeholder="Если камера требует авторизацию" />
+                </div>
+                <div class="mp-field">
+                    <label class="mp-label">Пароль камеры</label>
+                    <input class="mp-input" type="password"
+                           @bind="form.StreamPassword"
+                           placeholder="Пароль для Basic-авторизации" />
                 </div>
 
             </div>
@@ -203,6 +230,9 @@
         public string? StreamUrl { get; set; }
         public string StreamType { get; set; } = "JPG";
         public int RefreshInterval { get; set; } = 5;
+        public string YoloModel { get; set; } = "classic";
+        public string? StreamLogin { get; set; }
+        public string? StreamPassword { get; set; }
         public int FreeSpots { get; set; }
         public int BusySpots { get; set; }
     }
@@ -218,6 +248,9 @@
         public string StreamUrl { get; set; } = "";
         public string StreamType { get; set; } = "JPG";
         public int RefreshInterval { get; set; } = 5;
+        public string YoloModel { get; set; } = "classic";
+        public string? StreamLogin { get; set; }
+        public string? StreamPassword { get; set; }
     }
 
     // ── State ──
@@ -282,11 +315,14 @@
         {
             Name = p.Name,
             Address = p.Address,
-            Latitude = p.Latitude,   // ← добавить
-            Longitude = p.Longitude,  // ← добавить
+            Latitude = p.Latitude,
+            Longitude = p.Longitude,
             StreamUrl = p.StreamUrl ?? "",
             StreamType = p.StreamType,
-            RefreshInterval = p.RefreshInterval
+            RefreshInterval = p.RefreshInterval,
+            YoloModel = p.YoloModel,
+            StreamLogin = p.StreamLogin,
+            StreamPassword = p.StreamPassword
         };
         nameError = addressError = false;
         showDialog = true;
@@ -312,7 +348,10 @@
                 longitude = form.Longitude,
                 streamUrl = form.StreamUrl.Trim(),
                 streamType = form.StreamType,
-                refreshInterval = form.RefreshInterval
+                refreshInterval = form.RefreshInterval,
+                yoloModel = form.YoloModel,
+                streamLogin = form.StreamLogin,
+                streamPassword = form.StreamPassword
             };
 
             HttpResponseMessage resp;

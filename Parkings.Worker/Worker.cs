@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenCvSharp;
 using System.Drawing;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -83,7 +84,7 @@ namespace Parkings.Worker
         }
 
         private async Task ProcessParking(ParkingWithSpacesDto parking,
-    string workerKey, CancellationToken ct)
+            string workerKey, CancellationToken ct)
         {
             if (string.IsNullOrEmpty(parking.StreamUrl)) return;
 
@@ -95,11 +96,32 @@ namespace Parkings.Worker
                 if (parking.StreamType == "MJPEG")
                 {
                     (carBoxes, frameWidth, frameHeight) =
-                        _detector.DetectFromMjpegWithSize(parking.StreamUrl);
+                        _detector.DetectFromMjpegWithSize(
+                        parking.StreamUrl,
+                        parking.YoloModel,
+                        parking.StreamLogin,
+                        parking.StreamPassword);
+                }
+                else if (parking.StreamType == "RTSP")
+                {
+                    (carBoxes, frameWidth, frameHeight) =
+                        _detector.DetectFromRtspWithSize(
+                            parking.StreamUrl,
+                            parking.YoloModel,
+                            parking.StreamLogin,
+                            parking.StreamPassword);
                 }
                 else
                 {
                     using var imgClient = httpFactory.CreateClient("camera");
+                    if (!string.IsNullOrEmpty(parking.StreamLogin))
+                    {
+                        var creds = Convert.ToBase64String(
+                            System.Text.Encoding.UTF8.GetBytes(
+                                $"{parking.StreamLogin}:{parking.StreamPassword}"));
+                        imgClient.DefaultRequestHeaders.Authorization =
+                            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", creds);
+                    }
                     var imageBytes = await imgClient.GetByteArrayAsync(parking.StreamUrl, ct);
                     (carBoxes, frameWidth, frameHeight) = _detector.DetectWithSize(imageBytes);
                 }
@@ -253,10 +275,36 @@ namespace Parkings.Worker
             var sw = System.Diagnostics.Stopwatch.StartNew();
             try
             {
-                if (parking.StreamType == "MJPEG")
+                if (parking.StreamType == "RTSP")
                 {
-                    // Для MJPEG — просто HEAD запрос
+                    // RTSP — проверяем через VideoCapture, HttpClient не поддерживает rtsp://
+                    var streamUrl = string.IsNullOrEmpty(parking.StreamLogin)
+                        ? parking.StreamUrl!
+                        : BuildUrlWithAuth(parking.StreamUrl!, parking.StreamLogin, parking.StreamPassword);
+
+                    var available = await Task.Run(() =>
+                    {
+                        using var cap = new VideoCapture(streamUrl, VideoCaptureAPIs.FFMPEG);
+                        if (!cap.IsOpened()) return false;
+                        using var frame = new Mat();
+                        cap.Read(frame);
+                        return !frame.Empty();
+                    }, ct);
+
+                    isAvailable = available;
+                    responseMs = (int)sw.ElapsedMilliseconds;
+                }
+                else if (parking.StreamType == "MJPEG")
+                {
                     using var http = httpFactory.CreateClient("camera");
+                    if (!string.IsNullOrEmpty(parking.StreamLogin))
+                    {
+                        var creds = Convert.ToBase64String(
+                            System.Text.Encoding.UTF8.GetBytes(
+                                $"{parking.StreamLogin}:{parking.StreamPassword}"));
+                        http.DefaultRequestHeaders.Authorization =
+                            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", creds);
+                    }
                     using var req = new HttpRequestMessage(HttpMethod.Head, parking.StreamUrl);
                     using var cts2 = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     cts2.CancelAfter(TimeSpan.FromSeconds(10));
@@ -266,12 +314,20 @@ namespace Parkings.Worker
                 }
                 else
                 {
-                    // JPG — скачиваем чтобы убедиться что реальное изображение
+                    // JPG
                     using var http = httpFactory.CreateClient("camera");
+                    if (!string.IsNullOrEmpty(parking.StreamLogin))
+                    {
+                        var creds = Convert.ToBase64String(
+                            System.Text.Encoding.UTF8.GetBytes(
+                                $"{parking.StreamLogin}:{parking.StreamPassword}"));
+                        http.DefaultRequestHeaders.Authorization =
+                            new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", creds);
+                    }
                     using var cts2 = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     cts2.CancelAfter(TimeSpan.FromSeconds(10));
-                    var bytes = await http.GetByteArrayAsync(parking.StreamUrl, cts2.Token);
-                    isAvailable = bytes.Length > 1000; // минимальный размер JPG
+                    var bytes = await http.GetByteArrayAsync(parking.StreamUrl!, cts2.Token);
+                    isAvailable = bytes.Length > 1000;
                     responseMs = (int)sw.ElapsedMilliseconds;
                 }
             }
@@ -307,6 +363,14 @@ namespace Parkings.Worker
                 await CheckAndSendAlert(parking.Id, workerKey, ct);
         }
 
+        private static string BuildUrlWithAuth(string url, string? login, string? password)
+        {
+            if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
+                return url;
+            var uri = new Uri(url);
+            return $"{uri.Scheme}://{login}:{password}@{uri.Host}:{uri.Port}{uri.PathAndQuery}";
+        }
+
         private async Task CheckAndSendAlert(int parkingId,
             string workerKey, CancellationToken ct)
         {
@@ -326,6 +390,9 @@ namespace Parkings.Worker
         public string? StreamUrl { get; set; }
         public string StreamType { get; set; } = "JPG";
         public int RefreshInterval { get; set; }
+        public string YoloModel { get; set; } = "classic";     
+        public string? StreamLogin { get; set; }                
+        public string? StreamPassword { get; set; }             
         public List<ParkingSpaceDto> Spaces { get; set; } = new();
     }
 

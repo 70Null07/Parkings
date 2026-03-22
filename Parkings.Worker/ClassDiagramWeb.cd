@@ -1,0 +1,88 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1" MembersFormat="FullSignature">
+  <Class Name="Parkings.ApiService.Controllers.AdminController">
+    <Position X="1.5" Y="1" Width="5.25" />
+    <TypeIdentifier>
+      <HashCode>IBAAAAAAAAQBIAAEAAAAAAACAAAAAAAAAAEAgBAADAA=</HashCode>
+      <FileName>AdminController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Parkings.ApiService.Controllers.AuthController">
+    <Position X="7" Y="1" Width="7.75" />
+    <TypeIdentifier>
+      <HashCode>AAUAgAABAAAAgAAAAAAAAAAAAAABAKCAAAEQAAAAAAI=</HashCode>
+      <FileName>AuthController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ChatHub">
+    <Position X="10.75" Y="9.5" Width="4" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAABACAAABAAAAAAAAAQAAAAAAAAAAA=</HashCode>
+      <FileName>ChatHub.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Parkings.ApiService.Controllers.FavoritesController">
+    <Position X="7.25" Y="9.5" Width="3.25" />
+    <TypeIdentifier>
+      <HashCode>AAIAAAAAAAAAAAAAAAAABCAAAAAAAAAAAgAAAAIAAAA=</HashCode>
+      <FileName>FavoritesController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Parkings.ApiService.JwtService">
+    <Position X="7" Y="7" Width="5" />
+    <TypeIdentifier>
+      <HashCode>AAAIAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>JwtService.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Parkings.ApiService.Controllers.MapFilterController">
+    <Position X="1.5" Y="11.25" Width="5.25" />
+    <TypeIdentifier>
+      <HashCode>AAYAAAAAAAAAAAABAAAAAAAAAAEAAAAAAgAAAAAAAAA=</HashCode>
+      <FileName>MapFilterController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Parkings.ApiService.Controllers.MessagesController">
+    <Position X="10.75" Y="11.75" Width="4" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAIAAAAABAAAAAAACCAgAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>MessagesController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Parkings.ApiService.Controllers.OccupancyController">
+    <Position X="7" Y="4.75" Width="7.75" />
+    <TypeIdentifier>
+      <HashCode>AACAgAAAAAAAAAAAAAAAAAAAAAgAAAAAQAAAAAAAAAA=</HashCode>
+      <FileName>OccupancyController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Parkings.ApiService.Controllers.ParkingsController">
+    <Position X="1.5" Y="4.5" Width="5.25" />
+    <TypeIdentifier>
+      <HashCode>AAQAgAAAAAAAAAAAAAIAACAEAAEAAEAEBgAAAAAAAIA=</HashCode>
+      <FileName>ParkingsController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Parkings.ApiService.Controllers.ParkingSpacesController">
+    <Position X="1.5" Y="8.25" Width="5.25" />
+    <NestedTypes>
+      <Class Name="Parkings.ApiService.Controllers.ParkingSpacesController.BlockSpaceRequest" Collapsed="true">
+        <TypeIdentifier>
+          <NewMemberFileName>ParkingSpacesController.cs</NewMemberFileName>
+        </TypeIdentifier>
+      </Class>
+    </NestedTypes>
+    <TypeIdentifier>
+      <HashCode>IQAAgAAAAAAAAAAAAAAAACAAAAAAAAAIAAAAAAAAAAA=</HashCode>
+      <FileName>ParkingSpacesController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Parkings.ApiService.Controllers.UrlHealthController">
+    <Position X="7" Y="7" Width="7.75" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAIAAIAAAAAAAgAEAAAAAAAAAFAAAA=</HashCode>
+      <FileName>UrlHealthController.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

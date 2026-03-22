@@ -82,6 +82,9 @@ namespace Parkings.ApiService
         public bool IsDisabled { get; set; } = false;
         public int UserId { get; set; }
         public bool AlertsEnabled { get; set; } = true;
+        public string YoloModel { get; set; } = "classic"; // classic | extended | vertical
+        public string? StreamLogin { get; set; }
+        public string? StreamPassword { get; set; }
         public User User { get; set; } = null!;
         public ICollection<ParkingSpace> Spaces { get; set; } = new List<ParkingSpace>();
         public ICollection<OccupancyLog> OccupancyLogs { get; set; } = new List<OccupancyLog>();
