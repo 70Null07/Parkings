@@ -140,6 +140,11 @@ namespace Parkings.ApiService.Migrations
                     b.Property<bool>("IsDisabled")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsApproved")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<DateTime?>("LastCheckedAt")
                         .HasColumnType("datetime2");
 

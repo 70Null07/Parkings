@@ -162,3 +162,9 @@
     color: #BB0000;
     border: 1px solid #FFAAAA;
 }
+
+.adm-badge-yellow {
+    background: #FFF8E6;
+    color: #A36200;
+    border: 1px solid #FFD28A;
+}

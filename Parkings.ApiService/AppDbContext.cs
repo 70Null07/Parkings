@@ -46,6 +46,10 @@ namespace Parkings.ApiService
                 .HasOne(a => a.Parking).WithMany()
                 .HasForeignKey(a => a.ParkingId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Parking>()
+                .Property(p => p.IsApproved)
+                .HasDefaultValue(true);
         }
     }
 
@@ -80,6 +84,7 @@ namespace Parkings.ApiService
         public int BusySpots { get; set; } = 0;
         public DateTime? LastCheckedAt { get; set; }
         public bool IsDisabled { get; set; } = false;
+        public bool IsApproved { get; set; } = true;
         public int UserId { get; set; }
         public bool AlertsEnabled { get; set; } = true;
         public string YoloModel { get; set; } = "classic"; // classic | extended | vertical

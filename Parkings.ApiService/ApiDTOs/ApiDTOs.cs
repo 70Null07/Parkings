@@ -48,6 +48,7 @@ namespace Parkings.ApiService.ApiDTOs
         public int BusySpots { get; set; }
         public int UserId { get; set; }
         public DateTime? LastCheckedAt { get; set; }
+        public bool IsApproved { get; set; }
     }
 
     public class CreateParkingRequest
