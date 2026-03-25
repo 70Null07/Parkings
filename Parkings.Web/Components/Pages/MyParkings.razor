@@ -77,7 +77,7 @@
                             <button class="mp-btn mp-btn-ghost" @onclick="() => OpenEdit(p)">
                                 ✏ Изменить
                             </button>
-                            <button class="mp-btn mp-btn-negative" @onclick="() => DeleteParking(p.Id)">
+                            <button class="mp-btn mp-btn-negative" @onclick="() => OpenDeleteConfirm(p)">
                                 🗑
                             </button>
                         </div>
@@ -219,6 +219,25 @@
     </div>
 }
 
+@if (showDeleteConfirm && deletingParking is not null)
+{
+    <div class="mp-overlay" @onclick="CloseDeleteConfirm">
+        <div class="mp-dialog" @onclick:stopPropagation="true">
+            <div class="mp-dialog-header">
+                <span class="mp-dialog-title">Подтверждение удаления</span>
+                <button class="mp-dialog-close" @onclick="CloseDeleteConfirm">✕</button>
+            </div>
+            <div class="mp-dialog-body">
+                <p style="margin:0;">Вы точно хотите удалить парковку «@deletingParking.Name»?</p>
+            </div>
+            <div class="mp-dialog-footer">
+                <button class="mp-btn mp-btn-default" @onclick="CloseDeleteConfirm">Нет</button>
+                <button class="mp-btn mp-btn-negative" @onclick="ConfirmDeleteParking">Да</button>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     class ParkingDto
     {
@@ -263,6 +282,8 @@
     private FormModel form = new();
     private bool nameError = false;
     private bool addressError = false;
+    private bool showDeleteConfirm = false;
+    private ParkingDto? deletingParking;
 
     private string authToken = "";
 
@@ -384,15 +405,35 @@
         finally { isSaving = false; }
     }
 
-    private async Task DeleteParking(int id)
+    private void OpenDeleteConfirm(ParkingDto parking)
     {
+        deletingParking = parking;
+        showDeleteConfirm = true;
+    }
+
+    private void CloseDeleteConfirm()
+    {
+        showDeleteConfirm = false;
+        deletingParking = null;
+    }
+
+    private async Task ConfirmDeleteParking()
+    {
+        if (deletingParking is null)
+            return;
+
+        var id = deletingParking.Id;
+
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Delete, $"https+http://apiservice/api/parkings/{id}");
             req.Headers.Authorization = new("Bearer", authToken);
             var resp = await Http.SendAsync(req);
             if (resp.IsSuccessStatusCode)
+            {
                 parkings.RemoveAll(x => x.Id == id);
+                CloseDeleteConfirm();
+            }
             else
                 errorMessage = "Не удалось удалить парковку";
         }
