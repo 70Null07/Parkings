@@ -19,9 +19,9 @@ namespace Parkings.Worker
 
         private static float GetThreshold(string model) => model switch
         {
-            "extended" => 0.25f,  // расширенная — чуть мягче
-            "vertical" => 0.35f,  // вертикальная — строже (много ложных)
-            _ => 0.3f    // классическая
+            "extended" => 0.25f, 
+            "vertical" => 0.15f,  
+            _ => 0.3f 
         };
 
         public YoloDetector(IConfiguration config)
