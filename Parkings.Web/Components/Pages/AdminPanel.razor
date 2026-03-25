@@ -33,6 +33,10 @@ else
                         @onclick='() => tab = "parkings"'>
                     🅿 Парковки (@parkings.Count)
                 </button>
+                <button class="adm-tab @(tab == "pending" ? "adm-tab-active" : "")"
+                        @onclick='() => tab = "pending"'>
+                    ⏳ На утверждении (@pendingParkings.Count)
+                </button>
             </div>
         </div>
 
@@ -156,7 +160,7 @@ else
             </div>
         }
 
-        @if (tab == "parkings")
+        @if (tab == "parkings" || tab == "pending")
         {
             <!-- ── Парковки ── -->
             <div class="adm-toolbar">
@@ -167,7 +171,7 @@ else
             </div>
 
             <div class="adm-grid">
-                @foreach (var p in filteredParkings)
+                @foreach (var p in (tab == "pending" ? filteredPendingParkings : filteredParkings))
                 {
                     var parking = p;
                     <div class="adm-card @(p.IsDisabled ? "adm-card-blocked" : "")">
@@ -177,6 +181,10 @@ else
                                 @if (p.IsDisabled)
                                 {
                                     <span class="adm-badge adm-badge-red">Отключена</span>
+                                }
+                                @if (!p.IsApproved)
+                                {
+                                    <span class="adm-badge adm-badge-yellow">Ожидает утверждения</span>
                                 }
                             </div>
                             <span class="adm-meta">
@@ -204,6 +212,15 @@ else
                                     @onclick="() => ToggleParking(parking)">
                                 @(p.IsDisabled ? "✅ Включить" : "⛔ Отключить")
                             </button>
+
+                            @if (!p.IsApproved)
+                            {
+                                <button class="mp-btn mp-btn-positive"
+                                        style="font-size:0.75rem"
+                                        @onclick="() => ApproveParking(parking)">
+                                    ✅ Утвердить
+                                </button>
+                            }
 
                             <button class="mp-btn mp-btn-default"
                                     style="font-size:0.75rem"
@@ -268,6 +285,7 @@ else
         public string Name { get; set; } = "";
         public string Address { get; set; } = "";
         public bool IsDisabled { get; set; }
+        public bool IsApproved { get; set; }
         public int FreeSpots { get; set; }
         public int BusySpots { get; set; }
         public DateTime? LastCheckedAt { get; set; }
@@ -282,8 +300,10 @@ else
 
     private List<UserDto> users = new();
     private List<ParkingDto> parkings = new();
+    private List<ParkingDto> pendingParkings = new();
     private List<UserDto> filteredUsers = new();
     private List<ParkingDto> filteredParkings = new();
+    private List<ParkingDto> filteredPendingParkings = new();
 
     private string userSearch = "";
     private string parkingSearch = "";
@@ -349,6 +369,8 @@ else
                     new System.Text.Json.JsonSerializerOptions
                     { PropertyNameCaseInsensitive = true }) ?? new();
             filteredParkings = parkings;
+            pendingParkings = parkings.Where(p => !p.IsApproved).ToList();
+            filteredPendingParkings = pendingParkings;
         }
         catch { }
     }
@@ -369,6 +391,11 @@ else
             ? parkings
             : parkings.Where(p => p.Name.ToLower().Contains(q)
                                 || p.Address.ToLower().Contains(q)).ToList();
+
+        filteredPendingParkings = string.IsNullOrEmpty(q)
+            ? pendingParkings
+            : pendingParkings.Where(p => p.Name.ToLower().Contains(q)
+                                      || p.Address.ToLower().Contains(q)).ToList();
     }
 
     private async Task SetRole(UserDto u, string role)
@@ -465,6 +492,25 @@ else
         catch { }
     }
 
+    private async Task ApproveParking(ParkingDto p)
+    {
+        try
+        {
+            var client = ClientFactory.CreateClient("api");
+            using var req = new HttpRequestMessage(HttpMethod.Post,
+                $"http://apiservice/api/admin/parkings/{p.Id}/approve");
+            req.Headers.Authorization = new("Bearer", token);
+            var resp = await client.SendAsync(req);
+            if (!resp.IsSuccessStatusCode) return;
+
+            p.IsApproved = true;
+            pendingParkings = parkings.Where(x => !x.IsApproved).ToList();
+            SearchParkings(new ChangeEventArgs { Value = parkingSearch });
+            StateHasChanged();
+        }
+        catch { }
+    }
+
     private async Task DeleteParking(ParkingDto p)
     {
         if (!await JS.InvokeAsync<bool>("confirm",
@@ -478,7 +524,9 @@ else
             req.Headers.Authorization = new("Bearer", token);
             await client.SendAsync(req);
             parkings.Remove(p);
+            pendingParkings.RemoveAll(x => x.Id == p.Id);
             filteredParkings = filteredParkings.Where(x => x.Id != p.Id).ToList();
+            filteredPendingParkings = filteredPendingParkings.Where(x => x.Id != p.Id).ToList();
             StateHasChanged();
         }
         catch { }

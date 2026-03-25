@@ -56,6 +56,7 @@ namespace Parkings.ApiService.Controllers
                 YoloModel = req.YoloModel,
                 StreamLogin = req.StreamLogin,
                 StreamPassword = req.StreamPassword,
+                IsApproved = false,
                 UserId = CurrentUserId
             };
 
@@ -117,7 +118,8 @@ namespace Parkings.ApiService.Controllers
             StreamPassword = p.StreamPassword,
             FreeSpots = p.FreeSpots,
             BusySpots = p.BusySpots,
-            UserId = p.UserId
+            UserId = p.UserId,
+            IsApproved = p.IsApproved
         };
 
         // GET api/parkings/with-spaces — только для Worker (по API-ключу)
@@ -133,7 +135,7 @@ namespace Parkings.ApiService.Controllers
 
             var parkings = await _db.Parkings
                 .Include(p => p.Spaces)
-                .Where(p => p.Spaces.Any()) // только с разметкой
+                .Where(p => p.Spaces.Any() && p.IsApproved) // только подтверждённые с разметкой
                 .ToListAsync();
 
             var result = parkings.Select(p => new ParkingWithSpacesDto
@@ -162,7 +164,10 @@ namespace Parkings.ApiService.Controllers
         public async Task<IActionResult> GetPublic([FromQuery] string? polygon = null)
         {
             var parkings = await _db.Parkings
-                .Where(p => p.Latitude != null && p.Longitude != null && !p.IsDisabled)
+                .Where(p => p.Latitude != null
+                         && p.Longitude != null
+                         && !p.IsDisabled
+                         && p.IsApproved)
                 .Select(p => new PublicParkingDto
                 {
                     Id = p.Id,

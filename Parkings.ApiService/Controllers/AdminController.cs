@@ -103,6 +103,7 @@ namespace Parkings.ApiService.Controllers
                 p.Name,
                 p.Address,
                 p.IsDisabled,
+                p.IsApproved,
                 p.FreeSpots,
                 p.BusySpots,
                 p.LastCheckedAt,
@@ -128,6 +129,16 @@ namespace Parkings.ApiService.Controllers
             var p = await db.Parkings.FindAsync(id);
             if (p == null) return NotFound();
             p.IsDisabled = false;
+            await db.SaveChangesAsync();
+            return Ok();
+        }
+
+        [HttpPost("parkings/{id:int}/approve")]
+        public async Task<IActionResult> ApproveParking(int id)
+        {
+            var p = await db.Parkings.FindAsync(id);
+            if (p == null) return NotFound();
+            p.IsApproved = true;
             await db.SaveChangesAsync();
             return Ok();
         }

@@ -54,6 +54,13 @@
                             </span>
                         </div>
 
+                        @if (!p.IsApproved)
+                        {
+                            <div class="mp-kv-label" style="margin:0.35rem 1rem 0;color:#b26a00;">
+                                ⏳ Ожидает утверждения администратором (на карте пока не отображается)
+                            </div>
+                        }
+
                         <div class="mp-card-stats">
                             <div class="mp-stat">
                                 <span class="mp-stat-value free">@p.FreeSpots</span>
@@ -254,6 +261,7 @@
         public string? StreamPassword { get; set; }
         public int FreeSpots { get; set; }
         public int BusySpots { get; set; }
+        public bool IsApproved { get; set; }
     }
 
     private bool showMapPicker = false;
