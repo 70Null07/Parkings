@@ -79,7 +79,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(msgs);
         }
 
-        // Чтобы кнопка "Написать владельцу" знала кому писать
         [HttpGet("owner/{parkingId:int}")]
         public async Task<IActionResult> GetOwner(int parkingId)
         {

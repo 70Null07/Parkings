@@ -301,7 +301,6 @@
         {
             try
             {
-                // Читаем токен так же как в Profile.razor
                 authToken = await JS.InvokeAsync<string>("localStorage.getItem", "authToken") ?? "";
             }
             catch { }

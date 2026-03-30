@@ -121,7 +121,7 @@
 
     class Bucket
     {
-        public string Status { get; set; } = "unknown"; // up | down | unknown
+        public string Status { get; set; } = "unknown";
         public string Tooltip { get; set; } = "";
     }
 
@@ -141,7 +141,7 @@
     private int avgResponseMs = 0;
     private int maxResponseMs = 0;
     private int totalChecks = 0;
-    private int period = 24; // часов
+    private int period = 24;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -270,14 +270,13 @@
             }
         }
 
-        // Последний инцидент
         if (incidentStart.HasValue && prevStatus.HasValue)
         {
             incidents.Add(new Incident
             {
                 IsDown = prevStatus.Value,
                 StartTime = incidentStart.Value,
-                Duration = null, // текущий
+                Duration = null,
                 Error = prevStatus.Value ? incidentError : null
             });
         }

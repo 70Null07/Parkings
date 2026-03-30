@@ -181,7 +181,6 @@ namespace Parkings.Worker
                     if (!capture.IsOpened())
                         return (new List<BoundingBox>(), 640, 480);
 
-                    // Для RTSP пропускаем больше кадров — буфер может быть глубже
                     using var frame = new Mat();
                     for (int i = 0; i < 5; i++)
                     {

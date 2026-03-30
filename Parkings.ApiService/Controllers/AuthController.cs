@@ -27,7 +27,6 @@ namespace Parkings.ApiService.Controllers
             var existsName = await _db.Users.AnyAsync(u => u.Login == req.Login);
             if (existsName) return BadRequest("Имя уже занято");
 
-            // ← генерируем код
             var code = email.GenerateCode();
 
             var user = new User
@@ -43,7 +42,6 @@ namespace Parkings.ApiService.Controllers
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
-            // ← отправляем письмо
             await email.SendAsync(req.Email, "Подтверждение регистрации",
                 $"Ваш код подтверждения: {code}");
 
@@ -91,7 +89,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(new { Valid = true });
         }
 
-        // POST api/auth/confirm-email
         [HttpPost("confirm-email")]
         public async Task<IActionResult> ConfirmEmail([FromBody] ConfirmEmailRequest req)
         {
@@ -103,19 +100,17 @@ namespace Parkings.ApiService.Controllers
             user.EmailConfirmCode = null;
             await db.SaveChangesAsync();
 
-            // Возвращаем токен как при логине
             var token = _jwt.GenerateToken(user.Id, user.Login, user.Role);
             return Ok(new { token, user = new { userId = user.Id, displayName = user.Login } });
         }
 
-        // POST api/auth/forgot-password
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword(
             [FromBody] ApiDTOs.ForgotPasswordRequest req,
             [FromServices] EmailService email)
         {
             var user = await db.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
-            if (user == null) return Ok(); // не раскрываем существование
+            if (user == null) return Ok(); 
 
             var code = email.GenerateCode();
             user.PasswordResetCode = code;
@@ -128,7 +123,6 @@ namespace Parkings.ApiService.Controllers
             return Ok();
         }
 
-        // POST api/auth/reset-password
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ApiDTOs.ResetPasswordRequest req)
         {
@@ -150,7 +144,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(new { token, user = new { userId = user.Id, displayName = user.Login } });
         }
 
-        // POST api/auth/change-password — для авторизованных
         [HttpPost("change-password")]
         [Authorize]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
@@ -171,7 +164,6 @@ namespace Parkings.ApiService.Controllers
             return Ok();
         }
 
-        // POST api/auth/request-email-change — отправить код на новый email
         [HttpPost("request-email-change")]
         [Authorize]
         public async Task<IActionResult> RequestEmailChange(
@@ -196,7 +188,6 @@ namespace Parkings.ApiService.Controllers
             return Ok();
         }
 
-        // POST api/auth/confirm-email-change — подтвердить смену
         [HttpPost("confirm-email-change")]
         [Authorize]
         public async Task<IActionResult> ConfirmEmailChange([FromBody] ConfirmEmailChangeRequest req)

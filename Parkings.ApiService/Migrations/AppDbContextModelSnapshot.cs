@@ -17,7 +17,7 @@ namespace Parkings.ApiService.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.3")
+                .HasAnnotation("ProductVersion", "10.0.5")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -137,13 +137,13 @@ namespace Parkings.ApiService.Migrations
                     b.Property<int>("FreeSpots")
                         .HasColumnType("int");
 
-                    b.Property<bool>("IsDisabled")
-                        .HasColumnType("bit");
-
                     b.Property<bool>("IsApproved")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDisabled")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime?>("LastCheckedAt")
                         .HasColumnType("datetime2");

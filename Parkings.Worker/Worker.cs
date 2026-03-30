@@ -31,7 +31,6 @@ namespace Parkings.Worker
                     logger.LogError(ex, "Ошибка в цикле обработки");
                 }
 
-                // Общий интервал опроса — минимальный из всех парковок
                 await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
             }
         }
@@ -202,27 +201,6 @@ namespace Parkings.Worker
             return (spaces.Count - busy, busy, statuses);
         }
 
-        private static (int free, int busy, List<SpaceOccupancyItem> statuses) MatchCarsToSpaces(
-            List<BoundingBox> cars, List<ParkingSpaceDto> spaces)
-        {
-            int busy = 0;
-            var statuses = new List<SpaceOccupancyItem>();
-
-            foreach (var space in spaces)
-            {
-                bool occupied = cars.Any(car =>
-                {
-                    var center = new PointF((car.X1 + car.X2) / 2f, (car.Y1 + car.Y2) / 2f);
-                    return IsPointInPolygon(center, space.Points);
-                });
-
-                if (occupied) busy++;
-                statuses.Add(new SpaceOccupancyItem { SpaceId = space.Id, IsOccupied = occupied });
-            }
-
-            return (spaces.Count - busy, busy, statuses);
-        }
-
         private static bool IsPointInPolygon(PointF point, List<SpacePointDto> polygon)
         {
             bool inside = false;
@@ -248,7 +226,6 @@ namespace Parkings.Worker
             var apiClient = httpFactory.CreateClient("api");
             var workerKey = config["Worker:ApiKey"]!;
 
-            // Получаем все парковки
             using var req = new HttpRequestMessage(HttpMethod.Get,
                 "https+http://apiservice/api/parkings/with-spaces");
             req.Headers.Add("X-Worker-Key", workerKey);
@@ -356,7 +333,7 @@ namespace Parkings.Worker
                 });
                 await apiClient.SendAsync(req, ct);
             }
-            catch { /* не критично */ }
+            catch { }
 
             // Проверяем нужно ли слать алёрт
             if (!isAvailable)
@@ -383,7 +360,6 @@ namespace Parkings.Worker
         }
     }
 
-    // ── DTOs для общения с API ──────────────────────────────
     public class ParkingWithSpacesDto
     {
         public int Id { get; set; }

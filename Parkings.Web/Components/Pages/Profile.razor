@@ -243,13 +243,11 @@ else
     private bool emailCodeSent = false;
     private bool emailChanging = false;
 
-    // ── Auth state ───────────────────────────────────────────
     private bool isLoggedIn = false;
     private string token = "";
     private int userId = 0;
     private string mode = "login"; // login|register|confirm-email|forgot|reset
 
-    // ── Form fields ──────────────────────────────────────────
     private string loginField = "";
     private string emailField = "";
     private string passwordField = "";
@@ -257,11 +255,9 @@ else
     private string codeField = "";
     private int pendingUserId = 0;
 
-    // ── Messages ─────────────────────────────────────────────
     private string errorMsg = "";
     private string successMsg = "";
 
-    // ── Change password ──────────────────────────────────────
     private string oldPassword = "";
     private string newPassword = "";
     private string confirmNewPassword = "";
@@ -269,7 +265,6 @@ else
     private string pwdSuccess = "";
     private bool changingPassword = false;
 
-    // ── DTOs ─────────────────────────────────────────────────
     record LoginResult(UserDto User, string Token);
     record UserDto(int UserId, string DisplayName, string? Email, string Role);
 
@@ -297,12 +292,10 @@ else
         successMsg = "";
 
         if (m == "register")
-            // Небольшая задержка чтобы DOM успел отрендерить контейнер
             Task.Delay(100).ContinueWith(_ =>
                 InvokeAsync(() => JS.InvokeVoidAsync("initCaptcha")));
     }
 
-    // ── Логин ────────────────────────────────────────────────
     private async Task Login()
     {
         errorMsg = "";
@@ -327,7 +320,6 @@ else
         catch { errorMsg = "Ошибка подключения"; }
     }
 
-    // ── Регистрация ──────────────────────────────────────────
     private async Task Register()
     {
         errorMsg = "";
@@ -346,7 +338,6 @@ else
         if (!agreedToTerms)
         { errorMsg = "Необходимо принять условия использования"; return; }
 
-        // Получаем токен капчи из JS
         captchaToken = await JS.InvokeAsync<string>("getCaptchaToken") ?? "";
         if (string.IsNullOrEmpty(captchaToken))
         { errorMsg = "Пройдите проверку капчи"; return; }
@@ -371,7 +362,6 @@ else
         catch { errorMsg = "Ошибка подключения"; }
     }
 
-    // ── Подтверждение email ──────────────────────────────────
     private async Task ConfirmEmail()
     {
         errorMsg = "";
@@ -398,13 +388,11 @@ else
 
     private async Task ResendCode()
     {
-        // Повторная регистрация с теми же данными отправит новый код
         await Register();
         if (string.IsNullOrEmpty(errorMsg))
             successMsg = "Код отправлен повторно";
     }
 
-    // ── Забыли пароль ────────────────────────────────────────
     private async Task ForgotPassword()
     {
         errorMsg = ""; successMsg = "";
@@ -418,7 +406,6 @@ else
         catch { errorMsg = "Ошибка подключения"; }
     }
 
-    // ── Сброс пароля ─────────────────────────────────────────
     private async Task ResetPassword()
     {
         errorMsg = "";
@@ -447,7 +434,6 @@ else
         catch { errorMsg = "Ошибка подключения"; }
     }
 
-    // ── Смена пароля (авторизован) ───────────────────────────
     private async Task ChangePassword()
     {
         pwdError = ""; pwdSuccess = "";
@@ -488,7 +474,6 @@ else
         finally { changingPassword = false; }
     }
 
-    // ── Выход ────────────────────────────────────────────────
     private async Task Logout()
     {
         await JS.InvokeVoidAsync("localStorage.removeItem", "authToken");
@@ -498,7 +483,6 @@ else
         Nav.NavigateTo("/profile", forceLoad: true);
     }
 
-    // ── Helpers ──────────────────────────────────────────────
     private async Task SaveAuth(LoginResult result)
     {
         await JS.InvokeVoidAsync("localStorage.setItem", "authToken", result.Token);

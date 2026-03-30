@@ -14,7 +14,6 @@ namespace Parkings.ApiService.Controllers
         private int CurrentUserId =>
             int.Parse(User.FindFirstValue("uid") ?? "0");
 
-        // GET api/favorites
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -35,7 +34,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(list);
         }
 
-        // GET api/favorites/ids — просто список id для проверки звезды
         [HttpGet("ids")]
         public async Task<IActionResult> GetIds()
         {
@@ -46,7 +44,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(ids);
         }
 
-        // POST api/favorites/{parkingId}
         [HttpPost("{parkingId:int}")]
         public async Task<IActionResult> Add(int parkingId)
         {
@@ -66,7 +63,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(new { added = true });
         }
 
-        // DELETE api/favorites/{parkingId}
         [HttpDelete("{parkingId:int}")]
         public async Task<IActionResult> Remove(int parkingId)
         {

@@ -17,7 +17,6 @@ namespace Parkings.ApiService.Controllers
         private int CurrentUserId =>
             int.Parse(User.FindFirstValue("uid") ?? "0");
 
-        // GET api/parkings/5/spaces
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetSpaces(int parkingId)
@@ -42,7 +41,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(result);
         }
 
-        // POST api/parkings/5/spaces
         [HttpPost]
         public async Task<IActionResult> SaveSpaces(int parkingId, [FromBody] SaveSpacesRequest req)
         {
@@ -63,7 +61,6 @@ namespace Parkings.ApiService.Controllers
             });
             await _db.ParkingSpaces.AddRangeAsync(newSpaces);
 
-            // Обновляем общее количество мест
             parking.FreeSpots = req.Spaces.Count;
             parking.BusySpots = 0;
 
@@ -72,7 +69,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(new { saved = req.Spaces.Count });
         }
 
-        // POST api/parkings/{id}/spaces/{spaceId}/block
         [HttpPost("{spaceId:int}/block")]
         [Authorize]
         public async Task<IActionResult> BlockSpace(
@@ -92,7 +88,6 @@ namespace Parkings.ApiService.Controllers
             if (req.Status.HasValue)
                 space.IsOccupied = req.Status.Value;
 
-            // Пересчитываем парковки
             var allSpaces = await db.ParkingSpaces
                 .Where(s => s.ParkingId == parkingId)
                 .ToListAsync();
@@ -112,7 +107,7 @@ namespace Parkings.ApiService.Controllers
 
         public class BlockSpaceRequest
         {
-            public bool? Status { get; set; } // true=занято, false=свободно, null=снять блокировку
+            public bool? Status { get; set; }
         }
     }
 }

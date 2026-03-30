@@ -11,7 +11,6 @@ namespace Parkings.ApiService.Controllers
     {
         private readonly AppDbContext _db = db;
 
-        // GET — текущая загруженность (для UI)
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> GetCurrent(int parkingId)
@@ -28,8 +27,6 @@ namespace Parkings.ApiService.Controllers
             });
         }
 
-        // POST — вызывает Worker, без авторизации через JWT пользователя
-        // Защищаем отдельным API-ключом из конфига
         [HttpPost]
         public async Task<IActionResult> UpdateOccupancy(
             int parkingId,
@@ -48,7 +45,6 @@ namespace Parkings.ApiService.Controllers
             parking.BusySpots = req.BusySpots;
             parking.LastCheckedAt = DateTime.UtcNow;
 
-            // Обновляем IsOccupied для каждого места
             if (req.SpaceStatuses.Count != 0)
             {
                 var spaceIds = req.SpaceStatuses.Select(s => s.SpaceId).ToList();
@@ -95,14 +91,13 @@ namespace Parkings.ApiService.Controllers
             return Ok(new { updated = true });
         }
 
-        // GET api/parkings/5/occupancy/history?from=2024-01-01&to=2024-01-31&group=hour
         [HttpGet("history")]
         [AllowAnonymous]
         public async Task<IActionResult> GetHistory(
             int parkingId,
             [FromQuery] DateTime? from,
             [FromQuery] DateTime? to,
-            [FromQuery] string group = "raw") // raw | hour | day
+            [FromQuery] string group = "raw")
         {
             var exists = await _db.Parkings.AnyAsync(p => p.Id == parkingId);
             if (!exists) return NotFound();
@@ -126,20 +121,19 @@ namespace Parkings.ApiService.Controllers
                 })
                 .ToListAsync();
 
-            // Группировка на стороне сервера
             var result = group switch
             {
                 "hour" => logs
-    .GroupBy(l => new DateTime(
-        l.RecordedAt.Year, l.RecordedAt.Month, l.RecordedAt.Day,
-        l.RecordedAt.Hour, 0, 0))
-    .Select(g => new OccupancyHistoryDto
-    {
-        RecordedAt = g.Key,
-        FreeSpots = (int)Math.Round(g.Average(x => x.FreeSpots)),
-        BusySpots = (int)Math.Round(g.Average(x => x.BusySpots)),
-        TotalSpots = g.Last().TotalSpots   // ← Last актуальнее чем First
-    }),
+                    .GroupBy(l => new DateTime(
+                        l.RecordedAt.Year, l.RecordedAt.Month, l.RecordedAt.Day,
+                        l.RecordedAt.Hour, 0, 0))
+                    .Select(g => new OccupancyHistoryDto
+                    {
+                        RecordedAt = g.Key,
+                        FreeSpots = (int)Math.Round(g.Average(x => x.FreeSpots)),
+                        BusySpots = (int)Math.Round(g.Average(x => x.BusySpots)),
+                        TotalSpots = g.Last().TotalSpots
+                    }),
                 "day" => logs
                     .GroupBy(l => l.RecordedAt.Date)
                     .Select(g => new OccupancyHistoryDto

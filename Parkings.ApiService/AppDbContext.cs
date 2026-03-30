@@ -63,7 +63,7 @@ namespace Parkings.ApiService
         public bool EmailConfirmed { get; set; } = false;
         public string? PasswordResetCode { get; set; }
         public DateTime? PasswordResetCodeExpiry { get; set; }
-        public string Role { get; set; } = "user"; // user | admin | superadmin
+        public string Role { get; set; } = "user";
         public bool IsDeleted { get; set; } = false;
         public bool IsBlocked { get; set; } = false;
         public DateTime? BlockedAt { get; set; }
@@ -87,7 +87,7 @@ namespace Parkings.ApiService
         public bool IsApproved { get; set; } = true;
         public int UserId { get; set; }
         public bool AlertsEnabled { get; set; } = true;
-        public string YoloModel { get; set; } = "classic"; // classic | extended | vertical
+        public string YoloModel { get; set; } = "classic";
         public string? StreamLogin { get; set; }
         public string? StreamPassword { get; set; }
         public User User { get; set; } = null!;
@@ -102,7 +102,7 @@ namespace Parkings.ApiService
         public int SpaceNumber { get; set; }
         public string PointsJson { get; set; } = null!;
         public bool IsOccupied { get; set; } = false;
-        public bool? IsManuallyBlocked { get; set; } // null=авто, true=занято, false=свободно
+        public bool? IsManuallyBlocked { get; set; }
         public Parking Parking { get; set; } = null!;
     }
 
@@ -156,7 +156,7 @@ namespace Parkings.ApiService
         public int Id { get; set; }
         public int ParkingId { get; set; }
         public bool IsAvailable { get; set; }
-        public int? ResponseMs { get; set; }       // время ответа в мс
+        public int? ResponseMs { get; set; }
         public string? ErrorMessage { get; set; }
         public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
         public Parking Parking { get; set; } = null!;
@@ -166,7 +166,7 @@ namespace Parkings.ApiService
     {
         public int Id { get; set; }
         public int ParkingId { get; set; }
-        public string Type { get; set; } = "url_down"; // url_down | url_restored
+        public string Type { get; set; } = "url_down";
         public string Message { get; set; } = "";
         public bool EmailSent { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

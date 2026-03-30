@@ -48,8 +48,6 @@
         </div>
 
         <div class="pk-sidebar">
-
-            <!-- Статистика — видна всем -->
             <div class="pk-card">
                 <div class="pk-card-header">
                     <h2 class="pk-card-title">Загруженность</h2>
@@ -85,7 +83,6 @@
                 </div>
             </div>
 
-            <!-- Режим отображения — для всех -->
             <div class="pk-card">
                 <div class="pk-card-header">
                     <h2 class="pk-card-title">Отображение</h2>
@@ -256,7 +253,6 @@
     </div>
 }
 
-@* Внизу страницы, после основного контента *@
  @if (parking != null)
 {
     <div style="grid-column: 1 / -1; margin-top: 1rem;">
@@ -299,19 +295,16 @@
 
     private ParkingDto? parking;
     private bool isPageLoading = true;
-    // private bool isDrawing = false;
     private bool isSaving = false;
     private bool isOwner = false;
-    // private bool occupancyModeOn = false;
     private string spacesJsonCache = "[]";
-    // private bool hasSpacesLoadedForEditing = false;
     private int spaceCount = 0;
     private string snapshotUrl = "";
     private string saveMessage = "";
     private string authToken = "";
     private int currentUserId = 0;
     private DotNetObjectReference<Parking>? selfRef;
-    private string viewMode = "live"; // "live" | "occupancy" | "draw"
+    private string viewMode = "live";
     private bool isDrawing => viewMode == "draw";
     private bool hasSpacesLoadedForEditing = false;
 
@@ -327,7 +320,6 @@
         }
         catch { }
 
-        // Загружаем парковку
         try
         {
             var client = ClientFactory.CreateClient("api");
@@ -367,7 +359,6 @@
 
         StateHasChanged();
 
-        // Инициализируем canvas
         selfRef = DotNetObjectReference.Create(this);
         await JS.InvokeVoidAsync("parkingCanvas.init", "parkingCanvas", selfRef);
         await JS.InvokeVoidAsync("parkingCanvas.startLive", "parkingImage",
@@ -422,7 +413,7 @@
                 try
                 {
                     
-                // Если сейчас режим загруженности — перерисовываем полигоны
+                // Перерисовываем полигоны
                 if (viewMode == "occupancy")
                     await InvokeAsync(async () =>
                     {
@@ -488,7 +479,6 @@
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
                 spaceCount = loaded.Count;
 
-                // Загружаем расширенные данные для блокировки
                 spaces = await resp.Content
                     .ReadFromJsonAsync<List<SpaceDto>>(
                         new JsonSerializerOptions
@@ -578,7 +568,7 @@
 
     public async ValueTask DisposeAsync()
     {
-        _refreshTimer?.Dispose();  // ← добавить
+        _refreshTimer?.Dispose();
         try { await JS.InvokeVoidAsync("parkingCanvas.dispose"); } catch { }
         selfRef?.Dispose();
     }

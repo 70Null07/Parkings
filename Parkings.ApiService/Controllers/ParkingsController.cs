@@ -17,7 +17,6 @@ namespace Parkings.ApiService.Controllers
         private int CurrentUserId =>
             int.Parse(User.FindFirstValue("uid") ?? "0");
 
-        // GET api/parkings
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
@@ -28,9 +27,8 @@ namespace Parkings.ApiService.Controllers
             return Ok(list);
         }
 
-        // GET api/parkings/5
         [HttpGet("{id:int}")]
-        [AllowAnonymous]  // ← публичный, чтобы любой мог открыть страницу парковки
+        [AllowAnonymous]
         public async Task<IActionResult> GetById(int id)
         {
             var p = await _db.Parkings.FirstOrDefaultAsync(x => x.Id == id);
@@ -38,7 +36,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(ToDto(p));
         }
 
-        // POST api/parkings
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateParkingRequest req)
         {
@@ -65,7 +62,6 @@ namespace Parkings.ApiService.Controllers
             return CreatedAtAction(nameof(GetById), new { id = entity.Id }, ToDto(entity));
         }
 
-        // PUT api/parkings/5
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateParkingRequest req)
         {
@@ -90,7 +86,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(ToDto(entity));
         }
 
-        // DELETE api/parkings/5
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -122,7 +117,6 @@ namespace Parkings.ApiService.Controllers
             IsApproved = p.IsApproved
         };
 
-        // GET api/parkings/with-spaces — только для Worker (по API-ключу)
         [HttpGet("with-spaces")]
         [AllowAnonymous]
         public async Task<IActionResult> GetAllWithSpaces(
@@ -135,7 +129,7 @@ namespace Parkings.ApiService.Controllers
 
             var parkings = await _db.Parkings
                 .Include(p => p.Spaces)
-                .Where(p => p.Spaces.Any() && p.IsApproved) // только подтверждённые с разметкой
+                .Where(p => p.Spaces.Any() && p.IsApproved)
                 .ToListAsync();
 
             var result = parkings.Select(p => new ParkingWithSpacesDto
@@ -158,7 +152,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(result);
         }
 
-        // GET api/parkings/public — без авторизации, для карты
         [HttpGet("public")]
         [AllowAnonymous]
         public async Task<IActionResult> GetPublic([FromQuery] string? polygon = null)

@@ -3,7 +3,6 @@ using Parkings.Worker;
 var builder = Host.CreateApplicationBuilder(args);
 builder.AddServiceDefaults();
 
-// Aspire service discovery требует https+http:// схему
 builder.Services.AddHttpClient("api")
     .AddServiceDiscovery()
     .ConfigureHttpClient(client =>

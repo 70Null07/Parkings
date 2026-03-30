@@ -10,7 +10,6 @@ namespace Parkings.ApiService.Controllers
     [Route("api/parkings/{parkingId:int}/health")]
     public class UrlHealthController(AppDbContext db) : ControllerBase
     {
-        // GET — история доступности для графика
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetHistory(
@@ -34,7 +33,6 @@ namespace Parkings.ApiService.Controllers
                 })
                 .ToListAsync();
 
-            // Uptime %
             var total = logs.Count;
             var up = logs.Count(l => l.IsAvailable);
             var uptime = total > 0 ? Math.Round(up * 100.0 / total, 1) : 0;
@@ -42,7 +40,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(new { logs, uptime, total });
         }
 
-        // POST — от Worker
         [HttpPost]
         public async Task<IActionResult> AddCheck(
             int parkingId,
@@ -62,7 +59,6 @@ namespace Parkings.ApiService.Controllers
                 CheckedAt = DateTime.UtcNow
             });
 
-            // Удаляем старые записи старше 7 дней
             var cutoff = DateTime.UtcNow.AddDays(-7);
             await db.UrlHealthLogs
                 .Where(l => l.ParkingId == parkingId && l.CheckedAt < cutoff)
@@ -72,13 +68,12 @@ namespace Parkings.ApiService.Controllers
             return Ok();
         }
 
-        // POST api/parkings/{id}/health/alert — Worker вызывает при недоступности
         [HttpPost("alert")]
         public async Task<IActionResult> CheckAlert(
-    int parkingId,
-    [FromHeader(Name = "X-Worker-Key")] string? workerKey,
-    IConfiguration config,
-    [FromServices] EmailService email)
+            int parkingId,
+            [FromHeader(Name = "X-Worker-Key")] string? workerKey,
+            IConfiguration config,
+            [FromServices] EmailService email)
         {
             if (workerKey != config["Worker:ApiKey"]) return Unauthorized();
 
@@ -99,7 +94,6 @@ namespace Parkings.ApiService.Controllers
             var wasDown = recentLogs.Take(recentLogs.Count - 1).All(l => !l.IsAvailable);
             var lastIsUp = recentLogs.Last().IsAvailable;
 
-            // URL восстановился
             if (wasDown && lastIsUp)
             {
                 var restoredAlert = new ParkingAlert
@@ -115,7 +109,7 @@ namespace Parkings.ApiService.Controllers
                 {
                     await email.SendAsync(
                         parking.User.Email,
-                        $"✅ SmartParkings: камера восстановлена — {parking.Name}",
+                        $"SmartParkings: камера восстановлена — {parking.Name}",
                         $"Видеопоток парковки «{parking.Name}» снова доступен.");
                     restoredAlert.EmailSent = true;
                 }
@@ -126,7 +120,6 @@ namespace Parkings.ApiService.Controllers
 
             if (!allDown) return Ok(new { sent = false });
 
-            // Проверяем что алёрт не отправляли в последние 2 часа
             var twoHoursAgo = DateTime.UtcNow.AddHours(-2);
             var recentAlert = await db.ParkingAlerts
                 .AnyAsync(a => a.ParkingId == parkingId
@@ -151,7 +144,7 @@ namespace Parkings.ApiService.Controllers
             {
                 await email.SendAsync(
                     parking.User.Email,
-                    $"⚠ SmartParkings: камера недоступна — {parking.Name}",
+                    $"SmartParkings: камера недоступна — {parking.Name}",
                     $"Видеопоток парковки «{parking.Name}» ({parking.StreamUrl}) " +
                     $"недоступен более часа.\n\nОшибка: {lastError}\n\n" +
                     $"Открыть: smartparkings.ru/parking/{parking.Id}");
@@ -162,7 +155,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(new { sent = alert.EmailSent, type = "down" });
         }
 
-        // GET api/parkings/{id}/alerts
         [HttpGet("/api/parkings/{parkingId:int}/alerts")]
         [Authorize]
         public async Task<IActionResult> GetAlerts(
@@ -194,7 +186,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(new { alerts, total, page, pageSize });
         }
 
-        // PUT api/parkings/{id}/alerts/toggle
         [HttpPut("/api/parkings/{parkingId:int}/alerts/toggle")]
         [Authorize]
         public async Task<IActionResult> ToggleAlerts(int parkingId)
@@ -208,7 +199,6 @@ namespace Parkings.ApiService.Controllers
             return Ok(new { alertsEnabled = parking.AlertsEnabled });
         }
 
-        // DELETE api/parkings/{id}/alerts
         [HttpDelete("/api/parkings/{parkingId:int}/alerts")]
         [Authorize]
         public async Task<IActionResult> ClearAlerts(int parkingId)

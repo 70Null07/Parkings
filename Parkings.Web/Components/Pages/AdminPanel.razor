@@ -42,7 +42,6 @@ else
 
         @if (tab == "users")
         {
-            <!-- ── Пользователи ── -->
             <div class="adm-toolbar">
                 <input class="ps-input" style="max-width:300px"
                        placeholder="Поиск по логину / email..."
@@ -162,7 +161,6 @@ else
 
         @if (tab == "parkings" || tab == "pending")
         {
-            <!-- ── Парковки ── -->
             <div class="adm-toolbar">
                 <input class="ps-input" style="max-width:300px"
                        placeholder="Поиск по названию / адресу..."
@@ -198,7 +196,7 @@ else
                             </div>
                             <div class="adm-kv">
                                 <span>Владелец</span>
-                                <span>@p.OwnerLogin</span>
+                                <span>@p.Owner</span>
                             </div>
                             <div class="adm-kv">
                                 <span>Обновлено</span>
@@ -289,7 +287,7 @@ else
         public int FreeSpots { get; set; }
         public int BusySpots { get; set; }
         public DateTime? LastCheckedAt { get; set; }
-        public string OwnerLogin { get; set; } = "";
+        public string Owner { get; set; } = "";
         public int OwnerId { get; set; }
     }
 
@@ -550,7 +548,7 @@ else
             req.Content = JsonContent.Create(new { newOwnerId });
             await client.SendAsync(req);
             var newOwner = users.FirstOrDefault(u => u.Id == newOwnerId);
-            if (newOwner != null) p.OwnerLogin = newOwner.Login;
+            if (newOwner != null) p.Owner = newOwner.Login;
             p.OwnerId = newOwnerId;
             changeOwnerParkingId = null;
             StateHasChanged();
@@ -574,7 +572,6 @@ else
         changeEmailUserId = u.Id;
         changeEmailValue = u.Email ?? "";
         changeEmailMsg = "";
-        // закрыть другие инлайн-формы
         resetPasswordUserId = null;
         changeOwnerParkingId = null;
     }

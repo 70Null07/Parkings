@@ -14,7 +14,7 @@ builder.WebHost.ConfigureKestrel(options =>
     });
 });
 builder.Services.AddReverseProxy()
-    .AddServiceDiscoveryDestinationResolver() // ← для Aspire service discovery
+    .AddServiceDiscoveryDestinationResolver()
     .LoadFromMemory(
         routes: new[]
         {
@@ -93,7 +93,7 @@ app.MapGet("/api/camera/snapshot", async (HttpContext context,
                 if (!cap.IsOpened()) return null;
 
                 using var frame = new OpenCvSharp.Mat();
-                // Пропускаем буферные кадры
+
                 for (int i = 0; i < 5; i++) cap.Read(frame);
                 if (frame.Empty()) return null;
 

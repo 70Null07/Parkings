@@ -5,8 +5,6 @@
 @implements IAsyncDisposable
 
 <div class="cw-widget">
-
-    <!-- Кнопка-триггер -->
     <button class="cw-toggle" @onclick="ToggleOpen">
         <span class="cw-toggle-icon">💬</span>
         @if (unreadCount > 0)
@@ -20,7 +18,6 @@
         <div class="cw-panel">
             @if (view == "dialogs")
             {
-                <!-- ── Список диалогов ── -->
                 <div class="cw-header">
                     <span class="cw-header-title">Сообщения</span>
                     <button class="cw-btn-icon" @onclick="ToggleOpen">✕</button>
@@ -62,7 +59,6 @@
             }
             else if (view == "chat")
             {
-                <!-- ── Открытый диалог ── -->
                 <div class="cw-header">
                     <button class="cw-btn-icon" @onclick="BackToDialogs">←</button>
                     <div class="cw-header-meta">
@@ -108,7 +104,6 @@
 </div>
 
 @code {
-    // ── DTOs ──────────────────────────────────────────────────
     class DialogDto
     {
         public int ParkingId { get; set; }
@@ -132,11 +127,10 @@
         public string SenderName { get; set; } = "";
     }
 
-    // ── State ─────────────────────────────────────────────────
     private bool isOpen = false;
     private bool initialized = false;
     private bool loading = false;
-    private string view = "dialogs"; // dialogs | chat
+    private string view = "dialogs";
     private string authToken = "";
     private int currentUserId = 0;
     private int unreadCount = 0;
@@ -146,7 +140,6 @@
     private string inputText = "";
     private DotNetObjectReference<ChatWidget>? selfRef;
 
-    // ── Lifecycle ─────────────────────────────────────────────
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender || initialized) return;
@@ -166,20 +159,13 @@
 
         await JS.InvokeVoidAsync("chatClient.setRef", selfRef);
 
-        // // Подключаем SignalR напрямую к API (не через Blazor-хост)
-        // var apiBase = Nav.BaseUri.Contains("5150")
-        //     ? "http://localhost:5545"
-        //     : "http://localhost:5545"; // TODO: взять из конфига
         var hubUrl = Nav.BaseUri.TrimEnd('/') + "/hubs/chat";
         await JS.InvokeVoidAsync("chatClient.start", hubUrl, authToken, selfRef);
-        // await JS.InvokeVoidAsync("chatClient.start",
-        //     apiBase + "/hubs/chat", authToken, selfRef);
 
         await LoadUnreadCount();
         StateHasChanged();
     }
 
-    // ── Панель ────────────────────────────────────────────────
     private async Task ToggleOpen()
     {
         isOpen = !isOpen;
@@ -225,7 +211,6 @@
         catch { }
     }
 
-    // ── Диалог ────────────────────────────────────────────────
     private async Task OpenDialog(DialogDto d)
     {
         activeDialog = d;
@@ -256,7 +241,6 @@
         await JS.InvokeVoidAsync("chatClient.scrollToBottom", "cwMessages");
     }
 
-    // Метод для вызова снаружи (со страницы парковки)
     [JSInvokable]
     public async Task StartDialogWith(int ownerId, string ownerName,
                                       int parkingId, string parkingName)
@@ -289,7 +273,6 @@
         view = "dialogs";
     }
 
-    // ── Отправка ──────────────────────────────────────────────
     private async Task SendMessage()
     {
         if (string.IsNullOrWhiteSpace(inputText) || activeDialog == null) return;
@@ -305,7 +288,6 @@
             await SendMessage();
     }
 
-    // ── SignalR callbacks ─────────────────────────────────────
     [JSInvokable]
     public async Task OnReceiveMessage(System.Text.Json.JsonElement raw)
     {
@@ -343,7 +325,6 @@
         if (msg == null) return;
         messages.Add(msg);
 
-        // Обновляем последнее сообщение в диалоге
         var d = dialogs.FirstOrDefault(
             x => x.ParkingId == msg.ParkingId && x.OtherId == msg.ReceiverId);
         if (d != null) { d.LastMessage = msg.Text; d.LastAt = msg.CreatedAt; }

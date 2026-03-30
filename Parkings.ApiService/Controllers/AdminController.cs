@@ -12,8 +12,6 @@ namespace Parkings.ApiService.Controllers
         IPasswordHasher<User> hasher,
         JwtService jwt) : ControllerBase
     {
-        // ── Пользователи ────────────────────────────────────────
-
         [HttpGet("users")]
         public async Task<IActionResult> GetUsers([FromQuery] string? search)
         {
@@ -28,7 +26,8 @@ namespace Parkings.ApiService.Controllers
                 u.Role,
                 u.IsBlocked,
                 u.IsDeleted,
-                u.EmailConfirmed
+                u.EmailConfirmed,
+                ParkingCount = u.Parkings.Count
             }).ToListAsync();
             return Ok(list);
         }
@@ -88,8 +87,6 @@ namespace Parkings.ApiService.Controllers
             await db.SaveChangesAsync();
             return Ok();
         }
-
-        // ── Парковки ─────────────────────────────────────────────
 
         [HttpGet("parkings")]
         public async Task<IActionResult> GetAllParkings([FromQuery] string? search)

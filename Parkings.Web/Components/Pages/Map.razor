@@ -32,41 +32,6 @@
                 </button>
             </div>
         }
-        <!-- В map-toolbar после кнопок фильтра -->
-        @* @if (!string.IsNullOrEmpty(authToken))
-        {
-            <div style="display:flex; gap:0.5rem; align-items:center;">
-                @if (!isDrawingPolygon)
-                {
-                    <button class="mp-btn @(hasPolygonFilter ? "mp-btn-attention" : "mp-btn-default")"
-                            @onclick="StartDrawPolygon"
-                            title="Нарисовать зону поиска">
-                        ✏ @(hasPolygonFilter ? "Зона активна" : "Нарисовать зону")
-                    </button>
-
-                    @if (hasPolygonFilter)
-                    {
-                        <button class="mp-btn mp-btn-negative"
-                                @onclick="ClearPolygon"
-                                title="Сбросить зону">
-                            🗑
-                        </button>
-                    }
-                }
-                else
-                {
-                    <span style="font-size:0.8rem; color:#0070F2; font-weight:600;">
-                        🖊 Кликайте на карту...
-                    </span>
-                    <button class="mp-btn mp-btn-positive" @onclick="FinishDrawPolygon">
-                        ✓ Готово
-                    </button>
-                    <button class="mp-btn mp-btn-default" @onclick="CancelDrawPolygon">
-                        Отмена
-                    </button>
-                }
-            </div>
-        } *@
     </div>
 
     <div class="map-body">
@@ -110,7 +75,6 @@
                 }
             </div>
 
-            <!-- Зоны -->
             @if (!string.IsNullOrEmpty(authToken))
             {
                 <div class="map-favorites">
@@ -260,25 +224,18 @@
             await LoadPolygons(client);
         }
 
-        // ← Сначала рендерим панель избранного чтобы карта знала свою ширину
         StateHasChanged();
         await Task.Delay(100);
 
-        // ← Потом инициализируем карту — она уже знает правильный размер контейнера
         selfRef = DotNetObjectReference.Create(this);
         if (polygons.Count > 0)
         {
-            // Загружаем парковки в пересечении всех полигонов
             await InitMapWithPolygonFilter();
         }
         else
         {
             await InitMap(allParkings);
         }
-        // await InitMap(allParkings);
-
-        // if (hasPolygonFilter)
-        //     await LoadFilteredParkings();
     }
 
     private async Task LoadMyParkings(HttpClient client)
@@ -320,7 +277,6 @@
         var json = System.Text.Json.JsonSerializer.Serialize(parkings, opts);
         var favJson = System.Text.Json.JsonSerializer.Serialize(favoriteIds.ToList());
 
-        // ← camelCase чтобы JS получил id/pointsJson с маленькой буквы
         var allPolygonsJson = System.Text.Json.JsonSerializer.Serialize(
             polygons.Select(p => new { id = p.Id, pointsJson = p.PointsJson }));
 
@@ -465,7 +421,6 @@
 
     private List<PolygonDto> polygons = new();
     private int? editingPolygonId = null;
-    // private bool isDrawingPolygon = false;
 
     private async Task LoadPolygons(HttpClient client)
     {
@@ -514,7 +469,6 @@
                 await JS.InvokeVoidAsync("parkingMap.confirmNewPolygon",
                     created.Id, created.PointsJson);
 
-                // ← фильтруем по новому полигону сразу
                 await InitMapWithPolygonFilter();
             }
         }
@@ -566,7 +520,6 @@
 
     private async Task FilterByPolygon(PolygonDto p)
     {
-        // Фильтруем парковки по выбранной зоне
         var client = ClientFactory.CreateClient("api");
         var encoded = Uri.EscapeDataString(p.PointsJson);
         var resp = await client.GetAsync(
@@ -592,7 +545,6 @@
 
     private async Task InitMapWithPolygonFilter()
     {
-        // Берём парковки которые попадают хотя бы в один полигон
         var filtered = new List<ParkingDto>();
         var client = ClientFactory.CreateClient("api");
 
@@ -607,7 +559,7 @@
                 {
                     var inZone = await resp.Content
                         .ReadFromJsonAsync<List<ParkingDto>>() ?? new();
-                    // Добавляем только новые (чтобы не дублировать)
+
                     foreach (var p in inZone)
                         if (!filtered.Any(x => x.Id == p.Id))
                             filtered.Add(p);

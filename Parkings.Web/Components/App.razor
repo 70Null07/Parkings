@@ -60,7 +60,6 @@
     </footer>
 
     <script>
-        // Показываем ссылку если роль superadmin
         document.addEventListener('DOMContentLoaded', () => {
             const role = localStorage.getItem('userRole');
             if (role === 'superadmin') {
@@ -77,20 +76,18 @@
             const container = document.getElementById('captcha-container');
             if (!container) return;
 
-            // Уничтожить предыдущий виджет если был
             if (window.captchaWidget) {
                 window.captchaWidget.destroy();
                 window.captchaWidget = null;
             }
 
-            // SmartCaptcha может быть ещё не загружена
             if (typeof window.smartCaptcha === 'undefined') {
                 setTimeout(window.initCaptcha, 300);
                 return;
             }
 
             window.captchaWidget = window.smartCaptcha.render('captcha-container', {
-                sitekey: 'ysc1_dXW1HBPe8xiz3WCCVNROWKjOZW5ie7CpEGZX2Ewvcb240825',   // ← из Yandex Cloud консоли
+                sitekey: 'ysc1_dXW1HBPe8xiz3WCCVNROWKjOZW5ie7CpEGZX2Ewvcb240825',
                 callback: function(token) {
                     window._captchaToken = token;
                 }
@@ -101,7 +98,6 @@
             return window._captchaToken || '';
         };
 
-        // Сбросить токен после использования
         window.resetCaptcha = function () {
             window._captchaToken = '';
             if (window.captchaWidget !== null && typeof window.smartCaptcha !== 'undefined') {
