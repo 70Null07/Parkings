@@ -7,7 +7,7 @@ namespace Parkings.ApiService.Controllers
 {
     [ApiController]
     [Route("api/admin")]
-    [Authorize(Roles = "superadmin")]
+    [Authorize(Roles = "superadmin,admin")]
     public class AdminController(AppDbContext db,
         IPasswordHasher<User> hasher,
         JwtService jwt) : ControllerBase
@@ -177,7 +177,7 @@ namespace Parkings.ApiService.Controllers
                 return BadRequest("Email уже используется");
 
             user.Email = req.NewEmail;
-            user.EmailConfirmed = true; // суперадмин меняет — считаем подтверждённым
+            user.EmailConfirmed = true;
             user.EmailConfirmCode = null;
             await db.SaveChangesAsync();
             return Ok();

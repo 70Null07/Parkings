@@ -50,7 +50,6 @@
     },
 };
 
-// В конце chat.js
 window.openChatWith = function (ownerId, ownerName, parkingId, parkingName) {
     // Ищем DotNet ref виджета и вызываем метод
     if (window._chatWidgetRef) {

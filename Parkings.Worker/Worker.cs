@@ -170,7 +170,7 @@ namespace Parkings.Worker
             List<BoundingBox> cars, List<ParkingSpaceDto> spaces,
             int frameWidth, int frameHeight)
         {
-            // Canvas всегда 640x480 — масштабируем полигоны под реальный размер кадра
+            // Canvas всегда 640x480
             const float canvasW = 640f;
             const float canvasH = 480f;
             float scaleX = frameWidth / canvasW;

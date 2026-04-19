@@ -322,6 +322,8 @@ else
             token = await JS.InvokeAsync<string>("localStorage.getItem", "authToken") ?? "";
             var role = await JS.InvokeAsync<string>("localStorage.getItem", "userRole") ?? "";
             isAdmin = role == "superadmin";
+            if (isAdmin == false)
+              isAdmin = role == "admin";
         }
         catch { }
 

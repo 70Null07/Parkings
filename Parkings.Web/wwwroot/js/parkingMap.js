@@ -84,7 +84,7 @@
         // Выбираем preset в зависимости от избранного и загруженности
         let preset;
         if (isFav) {
-            preset = 'islands#yellowDotIconWithCaption'; // золотой для избранных
+            preset = 'islands#yellowDotIconWithCaption';
         } else {
             preset = p.freeSpots > 0
                 ? 'islands#greenDotIconWithCaption'
@@ -209,7 +209,6 @@
         this.map.geoObjects.remove(this._drawingPolygon);
         this._drawingPolygon = null;
 
-        // Временный id пока не сохранён — вернём координаты, id придёт из API
         this._pendingCoords = coords;
         return JSON.stringify(coords);
     },

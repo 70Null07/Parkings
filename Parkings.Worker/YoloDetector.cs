@@ -52,9 +52,9 @@ namespace Parkings.Worker
             using var resized = image.Resize(new OpenCvSharp.Size(InputSize, InputSize));
             var tensor = MatToTensor(resized);
             var inputs = new List<NamedOnnxValue>
-        {
-            NamedOnnxValue.CreateFromTensor("images", tensor)
-        };
+            {
+                NamedOnnxValue.CreateFromTensor("images", tensor)
+            };
 
             using var results = GetSession(model).Run(inputs);
             var output = results.First().AsTensor<float>();

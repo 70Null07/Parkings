@@ -62,7 +62,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const role = localStorage.getItem('userRole');
-            if (role === 'superadmin') {
+        if (role === 'superadmin' || role === 'admin') {
                 const link = document.getElementById('adminLink');
                 if (link) link.style.display = '';
             }

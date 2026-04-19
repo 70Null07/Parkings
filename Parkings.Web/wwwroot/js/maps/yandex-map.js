@@ -8,7 +8,7 @@
         document.getElementById('map'),
         {
             location: {
-                center: [30.31413, 59.93863], // СПб
+                center: [30.31413, 59.93863],
                 zoom: 12
             }
         }

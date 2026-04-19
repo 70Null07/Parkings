@@ -9,7 +9,7 @@ window.parkingCanvas = (() => {
 
     let refreshInterval = null;
     let imgEl = null;
-    let REFRESH_MS = 5000;  // ← const → let
+    let REFRESH_MS = 5000; 
 
     let occupancyMode = false;
     let occupancyData = [];
@@ -243,7 +243,7 @@ window.parkingCanvas = (() => {
             // Очищаем canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Переподписываемся (убираем старые листенеры если были)
+            // Переподписываемся
             canvas.removeEventListener('click', onClick);
             canvas.removeEventListener('mousemove', onMouseMove);
             canvas.removeEventListener('contextmenu', onRightClick);
@@ -253,10 +253,9 @@ window.parkingCanvas = (() => {
             canvas.addEventListener('contextmenu', onRightClick);
         },
 
-        // НОВОЕ: запускается при монтировании компонента
         startLive(imgId, intervalMs = 5000) {
             imgEl = document.getElementById(imgId);
-            REFRESH_MS = intervalMs;  // сделать let вместо const
+            REFRESH_MS = intervalMs; 
             startRefresh();
         },
 
@@ -283,7 +282,7 @@ window.parkingCanvas = (() => {
             currentPoints = [];
             canvas.style.cursor = 'default';
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            startRefresh();                     // возобновляем live-обновление
+            startRefresh();                     
         },
 
         undoLast() {
